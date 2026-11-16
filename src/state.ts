@@ -6,6 +6,7 @@ export type View = 'collapsed' | 'compact' | 'expanded' | 'statsBar' | 'circle'
 export type Site = { name: string; url: string }
 export type GlassQuality = 'high' | 'balanced' | 'low'
 export type SurfaceTheme = 'glass' | 'black' | 'pure-black' | 'graphite' | 'acrylic' | 'rose' | 'lavender' | 'peach' | 'sakura' | 'candy'
+export type MotionStyle = 'smooth' | 'responsive' | 'off'
 
 export const defaultSites: Site[] = [
   { name: 'YouTube', url: 'https://www.youtube.com' },
@@ -20,6 +21,8 @@ type Preferences = {
   glassBlur: number
   glassGloss: number
   cornerRadius: number
+  motion: MotionStyle
+  hideFromCapture: boolean
   hover: boolean
   autoHide: boolean
   invisibleSlim: boolean
@@ -42,6 +45,8 @@ export const usePreferences = create<Preferences>()(persist<Preferences, [], [],
   glassBlur: 24,
   glassGloss: 65,
   cornerRadius: 100,
+  motion: 'smooth',
+  hideFromCapture: true,
   hover: true,
   autoHide: false,
   invisibleSlim: false,
@@ -57,7 +62,7 @@ export const usePreferences = create<Preferences>()(persist<Preferences, [], [],
   note: '',
 }), {
   name: 'islandx-preferences',
-  version: 4,
+  version: 5,
   migrate: persisted => {
     const preferences = persisted as Partial<Preferences>
     return {
@@ -65,6 +70,8 @@ export const usePreferences = create<Preferences>()(persist<Preferences, [], [],
       autoHide: false,
       invisibleSlim: false,
       locked: false,
+      motion: 'smooth',
+      hideFromCapture: true,
       ...preferences,
     } as Omit<Preferences, 'shelf'>
   },
@@ -77,11 +84,13 @@ export const useIsland = create<Island>(() => ({
 }))
 export const selectTab = (tab: Tab) => useIsland.setState({ tab, view: 'expanded' })
 export const setView = (view: View) => useIsland.setState(state => ({
-  view: state.appActive && !state.circleUnlocked && (view === 'collapsed' || view === 'compact') ? 'circle' : view,
+  view: state.appActive && !state.circleUnlocked && !usePreferences.getState().locked &&
+    (view === 'collapsed' || view === 'compact') ? 'circle' : view,
 }))
 export const setForeground = (appActive: boolean) => useIsland.setState(state => ({
   appActive,
-  view: appActive && !state.circleUnlocked ? 'circle' : state.view === 'circle' ? 'collapsed' : state.view,
+  view: appActive && !state.circleUnlocked && !usePreferences.getState().locked
+    ? 'circle' : state.view === 'circle' ? 'collapsed' : state.view,
 }))
 export const unlockCircle = (tab?: Tab) => useIsland.setState(state => ({
   circleUnlocked: true, view: 'expanded', tab: tab ?? state.tab,

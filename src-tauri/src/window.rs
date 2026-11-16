@@ -1,5 +1,6 @@
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Monitor, WebviewWindow};
+use std::sync::Mutex;
+use tauri::{AppHandle, Emitter, Monitor, State, WebviewWindow};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::Graphics::Dwm::{
     DwmSetWindowAttribute, DWMSBT_NONE, DWMWA_BORDER_COLOR, DWMWA_SYSTEMBACKDROP_TYPE,
@@ -11,11 +12,28 @@ use windows::Win32::Graphics::Gdi::{
 use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowLongPtrW, GetWindowRect, SetWindowDisplayAffinity, SetWindowLongPtrW, SetWindowPos,
     GWL_EXSTYLE, GWL_STYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
-    WDA_EXCLUDEFROMCAPTURE, WS_CAPTION, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
-    WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU, WS_THICKFRAME,
+    WDA_EXCLUDEFROMCAPTURE, WDA_NONE, WS_CAPTION, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU, WS_THICKFRAME,
 };
 
 const CIRCLE: u32 = 36;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Outline {
+    width: i32,
+    height: i32,
+    diameter: i32,
+    circle: bool,
+}
+
+#[derive(Default)]
+struct AppliedLayout {
+    outline: Option<Outline>,
+    capture_hidden: Option<bool>,
+}
+
+#[derive(Default)]
+pub struct LayoutState(Mutex<AppliedLayout>);
 
 #[derive(Serialize)]
 pub struct Display {
@@ -44,22 +62,17 @@ pub fn monitors(window: WebviewWindow) -> Result<Vec<Display>, String> {
         .collect())
 }
 
-fn shape(
-    hwnd: HWND,
-    width: i32,
-    height: i32,
-    scale: f64,
-    circle: bool,
-    corner_scale: f64,
-) -> Result<(), String> {
+fn shape(hwnd: HWND, outline: Outline) -> Result<(), String> {
+    let Outline {
+        width,
+        height,
+        diameter,
+        circle,
+    } = outline;
     unsafe {
         let region = if circle {
             CreateEllipticRgn(0, 0, width, height)
-        } else if height <= 8 {
-            CreateRoundRectRgn(0, 0, width, height, 0, 0)
         } else {
-            let max_diameter = ((48.0 * scale).round() as i32).min(height).min(width);
-            let diameter = ((max_diameter as f64) * corner_scale.clamp(0.0, 1.0)).round() as i32;
             CreateRoundRectRgn(0, 0, width, height, diameter, diameter)
         };
         if region.is_invalid() {
@@ -91,7 +104,7 @@ fn display(window: &WebviewWindow, monitor: i32) -> Result<Monitor, String> {
 }
 
 fn left_on_display(screen_width: i32, width: i32, anchor: f64, margin: i32) -> i32 {
-    let travel = screen_width - width;
+    let travel = (screen_width - width).max(0);
     let margin = margin.min(travel / 2);
     ((anchor * f64::from(screen_width)).round() as i32 - width / 2).clamp(margin, travel - margin)
 }
@@ -100,7 +113,8 @@ fn remove_frame(hwnd: HWND) {
     // Strip all non-client window frame styles so Windows never renders a caption or title bar.
     unsafe {
         let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-        let unwanted = (WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU).0 as isize;
+        let unwanted =
+            (WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU).0 as isize;
         let clean = (style & !unwanted) | (WS_POPUP.0 as isize);
         SetWindowLongPtrW(hwnd, GWL_STYLE, clean);
 
@@ -141,12 +155,17 @@ fn remove_frame(hwnd: HWND) {
 #[tauri::command]
 pub fn island_layout(
     window: WebviewWindow,
+    state: State<'_, LayoutState>,
     width: u32,
     height: u32,
     monitor: i32,
     anchor: Option<f64>,
     corner_radius: Option<f64>,
+    hide_from_capture: Option<bool>,
 ) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Only the IslandX overlay has an island layout.".into());
+    }
     let circle = width == CIRCLE && height == CIRCLE;
     if (!circle && (!(150..=640).contains(&width) || !(2..=360).contains(&height)))
         || monitor < -1
@@ -163,17 +182,29 @@ pub fn island_layout(
     let h = ((height as f64 * scale).round() as u32).min(screen.height) as i32;
     let hwnd = HWND(window.hwnd().map_err(|error| error.to_string())?.0);
     let first_show = !window.is_visible().unwrap_or(false);
+    let mut applied = state.0.lock().map_err(|error| error.to_string())?;
+    let hide_from_capture = hide_from_capture.unwrap_or(true);
+    let mut capture_result = Ok(());
     unsafe {
-        let style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-        let required = (WS_EX_TOOLWINDOW | WS_EX_TOPMOST).0 as isize;
         if first_show {
+            let style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            let required = (WS_EX_TOOLWINDOW | WS_EX_TOPMOST).0 as isize;
             SetWindowLongPtrW(
                 hwnd,
                 GWL_EXSTYLE,
                 style | required | WS_EX_NOACTIVATE.0 as isize,
             );
-            let _ = SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
             remove_frame(hwnd);
+            *applied = AppliedLayout::default();
+        }
+        if applied.capture_hidden != Some(hide_from_capture) {
+            let affinity = if hide_from_capture {
+                WDA_EXCLUDEFROMCAPTURE
+            } else {
+                WDA_NONE
+            };
+            capture_result = SetWindowDisplayAffinity(hwnd, affinity);
+            applied.capture_hidden = Some(hide_from_capture);
         }
         let inset = if circle {
             (5.0 * scale).round() as i32
@@ -186,22 +217,43 @@ pub fn island_layout(
             anchor.unwrap_or(0.5),
             (8.0 * scale).round() as i32,
         );
-        SetWindowPos(
-            hwnd,
-            None,
-            origin.x + left,
-            origin.y + inset,
-            w,
-            h,
-            SWP_NOACTIVATE | SWP_NOZORDER,
-        )
-        .map_err(|error| error.to_string())?;
+        let (x, y) = (origin.x + left, origin.y + inset);
+        let mut current = RECT::default();
+        let mut flags = SWP_NOACTIVATE | SWP_NOZORDER;
+        if GetWindowRect(hwnd, &mut current).is_ok() {
+            if (current.left, current.top) == (x, y) {
+                flags |= SWP_NOMOVE;
+            }
+            if (current.right - current.left, current.bottom - current.top) == (w, h) {
+                flags |= SWP_NOSIZE;
+            }
+        }
+        if !flags.contains(SWP_NOMOVE | SWP_NOSIZE) {
+            SetWindowPos(hwnd, None, x, y, w, h, flags).map_err(|error| error.to_string())?;
+        }
     }
-    shape(hwnd, w, h, scale, circle, corner_radius.unwrap_or(1.0))?;
+    let diameter = if circle || h <= 8 {
+        0
+    } else {
+        let max = ((48.0 * scale).round() as i32).min(h).min(w);
+        (f64::from(max) * corner_radius.unwrap_or(1.0)).round() as i32
+    };
+    let outline = Outline {
+        width: w,
+        height: h,
+        diameter,
+        circle,
+    };
+    if applied.outline != Some(outline) {
+        shape(hwnd, outline)?;
+        applied.outline = Some(outline);
+    }
+    drop(applied);
     if first_show {
         window.show().map_err(|error| error.to_string())?;
     }
-    Ok(())
+    capture_result
+        .map_err(|error| format!("Windows could not change screen capture visibility: {error}"))
 }
 
 #[tauri::command]
@@ -256,16 +308,18 @@ pub fn set_keyboard(window: WebviewWindow, enabled: bool) -> Result<(), String> 
         let style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
         let flag = WS_EX_NOACTIVATE.0 as isize;
         let next = if enabled { style & !flag } else { style | flag };
-        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, next);
-        let _ = SetWindowPos(
-            hwnd,
-            None,
-            0,
-            0,
-            0,
-            0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
-        );
+        if next != style {
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, next);
+            let _ = SetWindowPos(
+                hwnd,
+                None,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+            );
+        }
     }
     if enabled {
         window.set_focus().map_err(|error| error.to_string())?;

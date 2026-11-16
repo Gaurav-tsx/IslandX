@@ -13,7 +13,7 @@ import { mergeShelf, saveShelf } from './ui'
 import { startUpdates, useUpdate } from './updates'
 import { GlassButton, GlassCard, useTransparency } from './glass'
 import { IslandCircle } from './IslandCircle'
-import { sizes, useIslandMotion } from './island-motion'
+import { islandMotion, sizes, useIslandMotion } from './island-motion'
 
 const panels = {
   music: lazy(() => import('./panels/music')),
@@ -37,20 +37,12 @@ const tabs = [
   ['audio', 'Audio', Headphones], ['settings', 'Settings', Settings2],
 ] as const
 
-const spring = { type: 'spring', stiffness: 500, damping: 36, mass: 0.75 } as const
-const retract = { type: 'tween', duration: 0.16, ease: [0.25, 0.84, 0.44, 1] } as const
-
 // Panels slide in from the side the new tab sits on; only opacity/transform so the glass blur stays crisp.
 const panelMotion = {
   enter: (direction: number) => ({ opacity: 0, x: direction * 16 }),
   center: { opacity: 1, x: 0 },
   exit: (direction: number) => ({ opacity: 0, x: direction * -10 }),
 }
-const panelTransition = { duration: 0.18, ease: [0.22, 1, 0.36, 1] } as const
-
-// Waiting a beat before opening/closing stops accidental fly-bys from flickering the island.
-const OPEN_DELAY = 60
-const CLOSE_DELAY = 160
 
 function isEditable(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
@@ -60,7 +52,7 @@ export function App() {
   const { view, tab, status, appActive, circleUnlocked } = useIsland()
   const {
     surface, glassQuality, glassBlur, glassGloss, cornerRadius,
-    hover, autoHide, invisibleSlim, locked, monitor, captureClipboard,
+    hover, autoHide, invisibleSlim, locked, monitor, captureClipboard, motion, hideFromCapture,
   } = usePreferences()
   const updatePhase = useUpdate(update => update.phase)
   const activity = updatePhase === 'ready' || updatePhase === 'available'
@@ -83,18 +75,21 @@ export function App() {
   const tabIndex = tabs.findIndex(([id]) => id === tab)
   const previousTab = useRef(tabIndex)
   const direction = tabIndex >= previousTab.current ? 1 : -1
-  const reduceMotion = useReducedMotion()
-  const { frame, complete } = useIslandMotion(view, Boolean(reduceMotion))
+  const reduceMotion = Boolean(useReducedMotion()) || motion === 'off'
+  const timing = motion === 'smooth' ? islandMotion.smooth : islandMotion.responsive
+  const { frame, complete } = useIslandMotion(view, reduceMotion)
   const visible = frame.view
   const closing = frame.closeTo !== null
   const open = visible === 'expanded'
-  const optical = (open || visible === 'statsBar') && surface === 'glass' && glassQuality !== 'low'
+  const solid = surface === 'black' || surface === 'pure-black' || surface === 'graphite'
+  const optical = (open || visible === 'statsBar') && !solid && glassQuality !== 'low'
   const transparency = useTransparency()
   const translucent = optical && transparency
   const sweep = translucent && !closing && glassGloss > 0 && !reduceMotion
   const rest = activity ? 'compact' : 'collapsed'
   const isResting = visible === 'collapsed' || visible === 'compact'
-  const isSlim = (locked || autoHide) && isResting && !closing && !isHovered && !islandDragging && !circleUnlocked
+  const isSlim = isResting && !closing && !islandDragging &&
+    (locked || (autoHide && !isHovered && !circleUnlocked))
   const [width, height] = sizes[visible]
   const [fromWidth, fromHeight] = sizes[frame.from ?? visible]
   const [toWidth, toHeight] = sizes[frame.closeTo ?? visible]
@@ -106,10 +101,17 @@ export function App() {
   // Measure the active tab so the highlight can glide to it.
   useLayoutEffect(() => {
     const bar = nav.current
-    const active = bar?.querySelector<HTMLElement>('[aria-current="page"]')
-    if (!bar || !active) return
-    bar.style.setProperty('--pill-x', `${active.offsetLeft}px`)
-    bar.style.setProperty('--pill-w', `${active.offsetWidth}px`)
+    if (!bar) return
+    const measure = () => {
+      const active = bar.querySelector<HTMLElement>('[aria-current="page"]')
+      if (!active) return
+      bar.style.setProperty('--pill-x', `${active.offsetLeft}px`)
+      bar.style.setProperty('--pill-w', `${active.offsetWidth}px`)
+    }
+    measure()
+    const resize = new ResizeObserver(measure)
+    resize.observe(bar)
+    return () => resize.disconnect()
   }, [tab, open])
 
   useEffect(() => () => {
@@ -158,13 +160,13 @@ export function App() {
     if (!desktop) return
     const resize = () => {
       const anchor = locked ? 0.5 : usePreferences.getState().circlePosition
-      const corner_radius = usePreferences.getState().cornerRadius / 100
       void native('island_layout', {
         width: (locked && isSlim) ? 280 : width,
         height: isSlim ? 4 : height,
         monitor,
         anchor,
-        corner_radius,
+        cornerRadius: cornerRadius / 100,
+        hideFromCapture,
       }).catch(error => notice(errorText(error)))
     }
     resize()
@@ -172,7 +174,7 @@ export function App() {
     const dpi = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`)
     dpi.addEventListener('change', resize, { once: true })
     return () => dpi.removeEventListener('change', resize)
-  }, [width, height, monitor, visible, appActive, isSlim, cornerRadius, locked])
+  }, [width, height, monitor, isSlim, cornerRadius, locked, hideFromCapture])
 
   useEffect(() => () => {
     if (rightDragFrame.current !== undefined) cancelAnimationFrame(rightDragFrame.current)
@@ -232,10 +234,11 @@ export function App() {
     })
   }
 
-  return <MotionConfig reducedMotion="user"><LazyMotion features={domAnimation}>
+  return <MotionConfig reducedMotion={reduceMotion ? 'always' : 'never'}><LazyMotion features={domAnimation}>
     <main className="desktop" data-surface={surface} data-preview={!desktop}
       data-quality={glassQuality} data-optics={translucent && !closing} data-translucent={translucent}
       data-transparency={transparency} data-card-blur={translucent && !closing && glassBlur > 0}
+      data-motion={reduceMotion ? 'off' : motion}
       style={{ '--glass-blur': `${glassBlur}px`, '--glass-gloss': glassGloss / 100, '--corner-scale': cornerRadius / 100 } as CSSProperties} onKeyDown={event => {
       if (event.key === 'Escape') collapse()
     }}>
@@ -316,7 +319,7 @@ export function App() {
           if (locked) {
             intent.current = window.setTimeout(() => {
               openFromRest()
-            }, OPEN_DELAY)
+            }, timing.hoverIn)
             return
           }
           const current = useIsland.getState()
@@ -324,8 +327,9 @@ export function App() {
           if (canHover && (current.view === 'collapsed' || current.view === 'compact')) {
             intent.current = window.setTimeout(() => {
               const latest = useIsland.getState()
-              if (latest.view === 'collapsed' || latest.view === 'compact') openFromRest()
-            }, OPEN_DELAY)
+              const canStillHover = latest.circleUnlocked || (usePreferences.getState().hover && !latest.appActive)
+              if (canStillHover && (latest.view === 'collapsed' || latest.view === 'compact')) openFromRest()
+            }, timing.hoverIn)
           }
         }}
         onPointerLeave={() => {
@@ -337,7 +341,7 @@ export function App() {
                 collapse()
                 setIsHovered(false)
               }
-            }, CLOSE_DELAY)
+            }, timing.hoverOut)
             return
           }
           const current = useIsland.getState()
@@ -347,11 +351,11 @@ export function App() {
                 collapse()
                 setIsHovered(false)
               }
-            }, CLOSE_DELAY)
+            }, timing.hoverOut)
           } else if (current.view === 'collapsed' || current.view === 'compact') {
             intent.current = window.setTimeout(() => {
               setIsHovered(false)
-            }, CLOSE_DELAY)
+            }, timing.hoverOut)
           }
         }}
         onContextMenu={event => {
@@ -363,6 +367,7 @@ export function App() {
             return
           }
           if (!circleUnlocked) return
+          window.clearTimeout(intent.current)
           lockCircle(rest)
         }}
         onPointerDownCapture={event => {
@@ -377,7 +382,9 @@ export function App() {
         data-dragging={islandDragging}
         initial={frame.from ? { opacity: 0.85, scaleX: Math.max(0.1, fromWidth / width), scaleY: Math.max(0.13, fromHeight / height) } : false}
         animate={{ opacity: closing ? 0.78 : 1, scaleX: toWidth / width, scaleY: toHeight / height }}
-        transition={closing ? retract : spring}
+        transition={reduceMotion ? { duration: 0 } : closing
+          ? { type: 'tween', duration: timing.close, ease: [0.25, 0.84, 0.44, 1] }
+          : timing.spring}
         onAnimationComplete={complete}
         aria-label="IslandX"
       >
@@ -388,7 +395,7 @@ export function App() {
         <m.div className="island-content" inert={closing}
           initial={frame.from ? { opacity: 0, y: -7 } : false}
           animate={{ opacity: closing ? 0 : 1, y: closing ? -5 : 0 }}
-          transition={closing ? { duration: 0.09, ease: 'easeOut' } : { duration: 0.22, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}>
+          transition={{ duration: reduceMotion ? 0 : closing ? 0.09 : timing.panel, ease: 'easeOut' }}>
         {open ? <>
           <header className="toolbar">
             <span className="brand-mark" title={circleUnlocked ? 'Right-click to lock hover' : 'IslandX'}><i /><i /></span>
@@ -425,7 +432,8 @@ export function App() {
             </div>
           </header>
           <AnimatePresence mode="wait" initial={false} custom={direction}>
-            <m.div className="panel" key={tab} custom={direction} variants={panelMotion} initial="enter" animate="center" exit="exit" transition={panelTransition}>
+            <m.div className="panel" key={tab} custom={direction} variants={panelMotion} initial={reduceMotion ? false : 'enter'} animate="center" exit={reduceMotion ? undefined : 'exit'}
+              transition={{ duration: reduceMotion ? 0 : timing.panel, ease: [0.22, 1, 0.36, 1] }}>
               <Suspense fallback={<p className="empty" role="status">opening panel…</p>}>
                 {tab === 'music' ? <Panel /> : <GlassCard className="panel-glass" blur="standard"><Panel /></GlassCard>}
               </Suspense>
@@ -434,7 +442,7 @@ export function App() {
           <AnimatePresence>
             {status && <m.div key="toast" className="toast-wrap"
               initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              transition={{ type: 'spring', stiffness: 520, damping: 34 }}>
+              transition={reduceMotion ? { duration: 0 } : timing.spring}>
               <GlassCard className="toast" role="status"><span>{status}</span><GlassButton variant="icon" aria-label="Dismiss message" onClick={() => notice('')}><X size={14} /></GlassButton></GlassCard>
             </m.div>}
           </AnimatePresence>

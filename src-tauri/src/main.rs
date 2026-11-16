@@ -37,6 +37,7 @@ fn main() {
         .manage(clipboard::ClipboardState::default())
         .manage(updates::UpdateState::default())
         .manage(glass::GlassState::default())
+        .manage(window::LayoutState::default())
         .manage(music::PlayerState::default())
         .invoke_handler(tauri::generate_handler![
             glass::transparency_allowed,

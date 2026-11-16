@@ -83,10 +83,11 @@ unsafe extern "system" fn foreground_changed(
         return;
     };
     let app = OBSERVER.with_borrow_mut(|slot| {
-        slot.as_mut().map(|observer| {
+        slot.as_mut().and_then(|observer| {
+            let changed = observer.latest != active;
             observer.latest = active;
             observer.window = window;
-            observer.app.clone()
+            changed.then(|| observer.app.clone())
         })
     });
     if let Some(app) = app {

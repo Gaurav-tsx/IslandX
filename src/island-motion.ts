@@ -1,6 +1,17 @@
 import { useLayoutEffect, useState } from 'react'
 import type { View } from './state'
 
+export const islandMotion = {
+  smooth: {
+    spring: { type: 'spring', stiffness: 500, damping: 36, mass: 0.75 },
+    hoverIn: 60, hoverOut: 100, close: 0.16, panel: 0.18,
+  },
+  responsive: {
+    spring: { type: 'spring', stiffness: 680, damping: 40, mass: 0.65 },
+    hoverIn: 25, hoverOut: 0, close: 0.12, panel: 0.13,
+  },
+} as const
+
 export const sizes = {
   collapsed: [184, 34],
   compact: [296, 40],
@@ -17,7 +28,9 @@ export function useIslandMotion(view: View, reduced: boolean) {
   useLayoutEffect(() => {
     setFrame(previous => {
       if (previous.view === view) {
-        return previous.closeTo ? { ...previous, closeTo: null } : previous
+        return previous.closeTo || (reduced && previous.from)
+          ? { view, from: null, closeTo: null }
+          : previous
       }
       const [width, height] = sizes[view]
       const [currentWidth, currentHeight] = sizes[previous.view]

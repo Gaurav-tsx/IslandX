@@ -8,6 +8,7 @@ import { checkUpdate, downloadUpdate, restartForUpdate, useUpdate } from '../upd
 import { fillStyle, PanelHeading } from '../ui'
 
 type Monitor = { index: number; name: string }
+const sections = ['Appearance', 'Behavior', 'Updates', 'About'] as const
 
 function Updates() {
   const update = useUpdate()
@@ -45,6 +46,10 @@ export default function Settings() {
   const solid = prefs.surface === 'black' || prefs.surface === 'pure-black' || prefs.surface === 'graphite'
   const adjustable = !solid && prefs.glassQuality !== 'low'
   const [displays, setDisplays] = useState<Monitor[]>([])
+  const [section, setSection] = useState<typeof sections[number]>(() => {
+    const phase = useUpdate.getState().phase
+    return phase === 'available' || phase === 'ready' ? 'Updates' : 'Appearance'
+  })
   const [autostart, setAutostart] = useState(false)
   const [uninstall, setUninstall] = useState(false)
   const [removeData, setRemoveData] = useState(false)
@@ -62,7 +67,10 @@ export default function Settings() {
 
   return <>
     <PanelHeading title="Settings"><small className="kbd">ctrl + shift + space</small></PanelHeading>
-    <div className="settings-list">
+    <div className="settings-nav" role="group" aria-label="Settings sections">
+      {sections.map(item => <GlassButton key={item} aria-pressed={section === item} onClick={() => setSection(item)}>{item}</GlassButton>)}
+    </div>
+    {section === 'Appearance' && <div className="settings-list">
       <label className="setting">Surface<select value={prefs.surface} onChange={event => usePreferences.setState({ surface: event.target.value as typeof prefs.surface })}>
         <option value="glass">liquid glass</option>
         <option value="black">black</option>
@@ -81,18 +89,11 @@ export default function Settings() {
         <output aria-hidden="true">{prefs.cornerRadius}%</output>
       </span></label>
       <small className="settings-hint">How round the corners are, from square (0%) to fully round (100%).</small>
-      <label className="setting">Lock to center & auto-vanish<input type="checkbox" checked={prefs.locked} onChange={event => {
-        const next = event.target.checked
-        usePreferences.setState({ locked: next, circlePosition: 0.5 })
-        if (next) setView('collapsed')
-      }} /></label>
-      <small className="settings-hint">Locks the island to the top center and hides it completely. Move cursor to the top edge to open directly, and it vanishes when you leave.</small>
-      <label className="setting">Slim strip (auto-hide)<input type="checkbox" checked={prefs.autoHide} disabled={prefs.locked} onChange={event => usePreferences.setState({ autoHide: event.target.checked })} /></label>
-      <small className="settings-hint">Collapses the island into a thin line at the top edge so it never covers browser tabs. Rest the cursor on it to open.</small>
-      {prefs.autoHide && <>
-        <label className="setting">Invisible trigger strip<input type="checkbox" checked={prefs.invisibleSlim} onChange={event => usePreferences.setState({ invisibleSlim: event.target.checked })} /></label>
-        <small className="settings-hint">Makes the strip completely invisible until you move the cursor to the top center.</small>
-      </>}
+      <label className="setting">Animation<select value={prefs.motion}
+        onChange={event => usePreferences.setState({ motion: event.target.value as typeof prefs.motion })}>
+        <option value="smooth">Smooth</option><option value="responsive">Responsive</option><option value="off">Off</option>
+      </select></label>
+      <small className="settings-hint">Responsive shortens spring transitions and closes as soon as the pointer leaves.</small>
       <label className="setting">Glass quality<select value={prefs.glassQuality} disabled={solid} aria-describedby="glass-quality-hint"
         onChange={event => usePreferences.setState({ glassQuality: event.target.value as typeof prefs.glassQuality })}>
         <option value="high">high</option><option value="balanced">balanced</option><option value="low">low</option>
@@ -111,15 +112,31 @@ export default function Settings() {
         <output aria-hidden="true">{prefs.glassGloss}%</output>
       </span></label>
       <small className="glass-reduced-hint">The system’s transparency preference is active.</small>
+    </div>}
+    {section === 'Behavior' && <div className="settings-list">
+      <label className="setting">Lock to center & auto-vanish<input type="checkbox" checked={prefs.locked} onChange={event => {
+        const next = event.target.checked
+        usePreferences.setState({ locked: next, circlePosition: 0.5 })
+        if (next) setView('collapsed')
+      }} /></label>
+      <small className="settings-hint">Locks the island to the top center and hides it completely. Move cursor to the top edge to open directly, and it vanishes when you leave.</small>
+      <label className="setting">Slim strip (auto-hide)<input type="checkbox" checked={prefs.autoHide} disabled={prefs.locked} onChange={event => usePreferences.setState({ autoHide: event.target.checked })} /></label>
+      <small className="settings-hint">Collapses the island into a thin line at the top edge so it never covers browser tabs. Rest the cursor on it to open.</small>
+      {prefs.autoHide && <>
+        <label className="setting">Invisible trigger strip<input type="checkbox" checked={prefs.invisibleSlim} onChange={event => usePreferences.setState({ invisibleSlim: event.target.checked })} /></label>
+        <small className="settings-hint">Makes the strip completely invisible until you move the cursor to the top center.</small>
+      </>}
       <label className="setting">Display<select value={prefs.monitor} onChange={event => usePreferences.setState({ monitor: Number(event.target.value) })}>
         <option value={-1}>primary display</option>{displays.map(display => <option value={display.index} key={display.index}>{display.name}</option>)}
       </select></label>
       <label className="setting">Expand on hover<input type="checkbox" checked={prefs.hover} onChange={event => usePreferences.setState({ hover: event.target.checked })} /></label>
+      <label className="setting">Hide IslandX from screen capture<input type="checkbox" checked={prefs.hideFromCapture}
+        disabled={!desktop} onChange={event => usePreferences.setState({ hideFromCapture: event.target.checked })} /></label>
       <label className="setting">Start with Windows<input type="checkbox" checked={autostart} disabled={!desktop} onChange={toggleStartup} /></label>
       <label className="setting">Keep encrypted text clipboard history<input type="checkbox" checked={prefs.captureClipboard} onChange={event => usePreferences.setState({ captureClipboard: event.target.checked })} /></label>
-    </div>
-    <Updates />
-    <GlassCard as="section" className="settings-section" blur="high"><h2>About IslandX</h2>
+    </div>}
+    {section === 'Updates' && <Updates />}
+    {section === 'About' && <GlassCard as="section" className="settings-section" blur="high"><h2>About IslandX</h2>
       <p className="subtle">Windows desktop overlay · No telemetry</p>
       {!uninstall ? <GlassButton className="danger" disabled={!desktop} onClick={() => setUninstall(true)}>Uninstall IslandX</GlassButton> : <div role="dialog" aria-label="Confirm uninstall">
         <label className="setting">Remove all settings and data<input type="checkbox" checked={removeData} onChange={event => setRemoveData(event.target.checked)} /></label>
@@ -129,6 +146,6 @@ export default function Settings() {
           <GlassButton className="danger" onClick={() => void native('uninstall', { removeData, removeHistory }).catch(error => notice(errorText(error)))}>Open uninstaller</GlassButton>
         </div>
       </div>}
-    </GlassCard>
+    </GlassCard>}
   </>
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.7
+
+- Organized Settings into Appearance, Behavior, Updates, and About.
+- Added Smooth, Responsive, and Off animation presets and a screen capture visibility setting.
+- Matched the visible corner radius to the Win32 window outline and reduced redundant native window updates.
+- Fixed center-lock auto-vanish when another app has focus and kept the toolbar highlight aligned after resizing.
+
 ## v0.3.6
 
 - Added a toolbar Lock button and "Lock to center & auto-vanish" mode: centers the island and makes it completely vanish from the desktop when idle.

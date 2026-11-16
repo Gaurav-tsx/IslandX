@@ -21,7 +21,7 @@
 .desktop[data-surface="black"] { --solid-fill: #0d0d10; }
 .desktop[data-surface="pure-black"] { --solid-fill: #000000; --accent: #ffffff; --accent-glow: rgb(255 255 255 / .2); }
 .desktop[data-surface="graphite"] { --solid-fill: #1a1c1e; --accent: #b0b8c1; --accent-glow: rgb(176 184 193 / .2); }
-.desktop[data-surface="acrylic"] { --solid-fill: rgba(22, 22, 26, 0.85); --glass-fill: rgba(25, 25, 30, 0.65); }
+.desktop[data-surface="acrylic"] { --solid-fill: #16161a; --glass-fill: rgba(25, 25, 30, 0.65); }
 .desktop[data-surface="rose"] { --solid-fill: #221417; --glass-fill: rgba(34, 20, 23, 0.55); --accent: #ff85a1; --accent-glow: rgb(255 133 161 / .3); }
 .desktop[data-surface="lavender"] { --solid-fill: #1a1424; --glass-fill: rgba(26, 20, 36, 0.55); --accent: #c499f6; --accent-glow: rgb(196 153 246 / .3); }
 .desktop[data-surface="peach"] { --solid-fill: #241812; --glass-fill: rgba(36, 24, 18, 0.55); --accent: #ffaa71; --accent-glow: rgb(255 170 113 / .3); }
@@ -158,8 +158,8 @@
 
 .glass-button.primary {
   color: var(--accent-ink);
-  background: linear-gradient(150deg, #ffc292, #ffa968 90%);
-  border-color: rgb(255 217 186 / .72);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 82%, white), var(--accent) 90%);
+  border-color: color-mix(in srgb, var(--accent) 72%, white);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .52), 0 3px 12px var(--accent-glow);
 }
 
