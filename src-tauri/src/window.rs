@@ -10,8 +10,9 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowLongPtrW, GetWindowRect, SetWindowDisplayAffinity, SetWindowLongPtrW, SetWindowPos,
-    GWL_EXSTYLE, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER, WDA_EXCLUDEFROMCAPTURE,
-    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    GWL_EXSTYLE, GWL_STYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+    WDA_EXCLUDEFROMCAPTURE, WS_CAPTION, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU, WS_THICKFRAME,
 };
 
 const CIRCLE: u32 = 36;
@@ -86,11 +87,17 @@ fn left_on_display(screen_width: i32, width: i32, anchor: f64, margin: i32) -> i
 }
 
 fn remove_frame(hwnd: HWND) {
-    // WebView owns the visible contour. Disable the independent DWM paint layers.
-    let no_border = 0xffff_fffe_u32;
-    let square = DWMWCP_DONOTROUND;
-    let no_backdrop = DWMSBT_NONE;
+    // Strip all non-client window frame styles so Windows never renders a caption or title bar.
     unsafe {
+        let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+        let unwanted = (WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU).0 as isize;
+        let clean = (style & !unwanted) | (WS_POPUP.0 as isize);
+        SetWindowLongPtrW(hwnd, GWL_STYLE, clean);
+
+        // WebView owns the visible contour. Disable the independent DWM paint layers.
+        let no_border = 0xffff_fffe_u32;
+        let square = DWMWCP_DONOTROUND;
+        let no_backdrop = DWMSBT_NONE;
         let _ = DwmSetWindowAttribute(
             hwnd,
             DWMWA_BORDER_COLOR,
@@ -108,6 +115,15 @@ fn remove_frame(hwnd: HWND) {
             DWMWA_SYSTEMBACKDROP_TYPE,
             std::ptr::from_ref(&no_backdrop).cast(),
             4,
+        );
+        let _ = SetWindowPos(
+            hwnd,
+            None,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
         );
     }
 }
@@ -177,40 +193,48 @@ pub fn island_layout(
 }
 
 #[tauri::command]
-pub fn move_circle(
+pub fn move_island(
     window: WebviewWindow,
     monitor: i32,
     start: f64,
     delta: f64,
 ) -> Result<f64, String> {
     if monitor < -1 || !(0.0..=1.0).contains(&start) || !delta.is_finite() {
-        return Err("Invalid circle position.".into());
+        return Err("Invalid island position.".into());
     }
     let display = display(&window, monitor)?;
     let scale = display.scale_factor();
     let screen = display.size().width as i32;
-    let width = ((f64::from(CIRCLE) * scale).round() as i32).min(screen);
     let origin = display.position();
     let hwnd = HWND(window.hwnd().map_err(|error| error.to_string())?.0);
     let target = (start + delta * scale / f64::from(screen)).clamp(0.0, 1.0);
-    let left = left_on_display(screen, width, target, (8.0 * scale).round() as i32);
     unsafe {
         let mut rect = RECT::default();
         GetWindowRect(hwnd, &mut rect).map_err(|error| error.to_string())?;
-        if rect.right - rect.left == width && rect.bottom - rect.top == width {
-            SetWindowPos(
-                hwnd,
-                None,
-                origin.x + left,
-                rect.top,
-                0,
-                0,
-                SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER,
-            )
-            .map_err(|error| error.to_string())?;
-        }
+        let width = (rect.right - rect.left).max(1);
+        let left = left_on_display(screen, width, target, (8.0 * scale).round() as i32);
+        SetWindowPos(
+            hwnd,
+            None,
+            origin.x + left,
+            rect.top,
+            0,
+            0,
+            SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER,
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(f64::from(left + width / 2) / f64::from(screen))
     }
-    Ok(f64::from(left + width / 2) / f64::from(screen))
+}
+
+#[tauri::command]
+pub fn move_circle(
+    window: WebviewWindow,
+    monitor: i32,
+    start: f64,
+    delta: f64,
+) -> Result<f64, String> {
+    move_island(window, monitor, start, delta)
 }
 
 #[tauri::command]
@@ -221,6 +245,15 @@ pub fn set_keyboard(window: WebviewWindow, enabled: bool) -> Result<(), String> 
         let flag = WS_EX_NOACTIVATE.0 as isize;
         let next = if enabled { style & !flag } else { style | flag };
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, next);
+        let _ = SetWindowPos(
+            hwnd,
+            None,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+        );
     }
     if enabled {
         window.set_focus().map_err(|error| error.to_string())?;

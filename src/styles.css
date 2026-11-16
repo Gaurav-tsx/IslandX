@@ -15,9 +15,28 @@
   font-size: 13px;
   letter-spacing: -.005em;
 }
-* { box-sizing: border-box; }
-html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+* {
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+}
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+img, a {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
 button, input, textarea, select { font: inherit; letter-spacing: inherit; }
+input, textarea, [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
 button { cursor: pointer; color: inherit; }
 button:disabled { cursor: default; opacity: .45; }
 ::selection { background: rgb(255 180 121 / .35); }
@@ -51,6 +70,7 @@ button:disabled { cursor: default; opacity: .45; }
 .island-content { position: relative; display: flex; flex-direction: column; }
 .island.collapsed, .island.compact, .island.statsBar, .island.circle { border-radius: 999px; }
 .island.circle { overflow: visible; }
+.island[data-dragging="true"], .island[data-dragging="true"] * { cursor: grabbing !important; }
 .collapsed .glass-shell, .compact .glass-shell { box-shadow: var(--glass-highlight); }
 
 /* ── circle ─────────────────────────────────────────────────────── */

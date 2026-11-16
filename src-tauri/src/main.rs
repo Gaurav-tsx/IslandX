@@ -43,6 +43,7 @@ fn main() {
             foreground::foreground_app,
             window::island_layout,
             window::move_circle,
+            window::move_island,
             window::monitors,
             window::set_keyboard,
             desktop::open_site,

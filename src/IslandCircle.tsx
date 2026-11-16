@@ -17,7 +17,7 @@ export function IslandCircle({ onUnlock, activity }: { onUnlock: () => void; act
 
   function move(gesture: Drag, save = false) {
     if (!desktop) return
-    void native<number>('move_circle', {
+    void native<number>('move_island', {
       monitor: usePreferences.getState().monitor,
       start: gesture.position,
       delta: gesture.delta,

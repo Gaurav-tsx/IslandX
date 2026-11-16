@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.4
+
+- Removed the Windows window title bar and caption frame flicker during deactivation and sizing transitions.
+- Made all UI text non-copyable and non-selectable across the overlay while preserving text selection inside search inputs and notes.
+- Added right-click hold-to-drag on the open island to directly reposition it along the top edge of the screen without collapsing it into a pill.
+
 ## v0.3.3
 
 - Added direction-aware sliding transitions between tabs, an animated gliding indicator highlight, and keyboard arrow navigation across panels.

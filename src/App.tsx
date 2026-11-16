@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, PointerEvent } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
@@ -52,6 +52,10 @@ const panelTransition = { duration: 0.18, ease: [0.22, 1, 0.36, 1] } as const
 const OPEN_DELAY = 60
 const CLOSE_DELAY = 160
 
+function isEditable(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
+}
+
 export function App() {
   const { view, tab, status, appActive, circleUnlocked } = useIsland()
   const { surface, glassQuality, glassBlur, glassGloss, hover, monitor, captureClipboard } = usePreferences()
@@ -60,6 +64,16 @@ export function App() {
   const Panel = panels[tab]
   const light = useRef<HTMLSpanElement>(null)
   const lightFrame = useRef<number | undefined>(undefined)
+  const rightDrag = useRef<{
+    pointerId: number
+    originX: number
+    startPosition: number
+    delta: number
+    started: boolean
+  } | null>(null)
+  const rightDragFrame = useRef<number | undefined>(undefined)
+  const hasDraggedRef = useRef(false)
+  const [islandDragging, setIslandDragging] = useState(false)
   const nav = useRef<HTMLElement>(null)
   const intent = useRef<number | undefined>(undefined)
   const tabIndex = tabs.findIndex(([id]) => id === tab)
@@ -137,8 +151,7 @@ export function App() {
   useLayoutEffect(() => {
     if (!desktop) return
     const resize = () => {
-      const anchor = visible === 'circle' || appActive
-        ? usePreferences.getState().circlePosition : null
+      const anchor = usePreferences.getState().circlePosition
       void native('island_layout', { width, height, monitor, anchor }).catch(error => notice(errorText(error)))
     }
     resize()
@@ -147,6 +160,21 @@ export function App() {
     dpi.addEventListener('change', resize, { once: true })
     return () => dpi.removeEventListener('change', resize)
   }, [width, height, monitor, visible, appActive])
+
+  useEffect(() => () => {
+    if (rightDragFrame.current !== undefined) cancelAnimationFrame(rightDragFrame.current)
+  }, [])
+
+  function moveIsland(delta: number, start: number, save = false) {
+    if (!desktop) return
+    void native<number>('move_island', {
+      monitor: usePreferences.getState().monitor,
+      start,
+      delta,
+    }).then(circlePosition => {
+      if (save) usePreferences.setState({ circlePosition })
+    }).catch(error => notice(errorText(error)))
+  }
 
   useEffect(() => {
     if (desktop) void native('clipboard_capture', { enabled: captureClipboard }).catch(error => notice(errorText(error)))
@@ -198,8 +226,72 @@ export function App() {
       if (event.key === 'Escape') collapse()
     }}>
       <div className={`island-frame ${visible}`}
+        data-dragging={islandDragging}
         style={!desktop ? { width, height } : undefined}
-        onPointerMove={sweep ? moveLight : undefined}
+        onPointerDown={event => {
+          if (event.button === 2 && open && !isEditable(event.target)) {
+            try {
+              event.currentTarget.setPointerCapture(event.pointerId)
+            } catch {}
+            rightDrag.current = {
+              pointerId: event.pointerId,
+              originX: event.screenX,
+              startPosition: usePreferences.getState().circlePosition,
+              delta: 0,
+              started: false,
+            }
+            hasDraggedRef.current = false
+          }
+        }}
+        onPointerMove={event => {
+          if (sweep) moveLight(event)
+          const gesture = rightDrag.current
+          if (!gesture || gesture.pointerId !== event.pointerId) return
+          gesture.delta = event.screenX - gesture.originX
+          if (!gesture.started) {
+            if (Math.abs(gesture.delta) < 4) return
+            gesture.started = true
+            hasDraggedRef.current = true
+            setIslandDragging(true)
+          }
+          if (rightDragFrame.current === undefined) {
+            rightDragFrame.current = requestAnimationFrame(() => {
+              rightDragFrame.current = undefined
+              moveIsland(gesture.delta, gesture.startPosition)
+            })
+          }
+        }}
+        onPointerUp={event => {
+          const gesture = rightDrag.current
+          if (gesture && gesture.pointerId === event.pointerId) {
+            try {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId)
+              }
+            } catch {}
+            rightDrag.current = null
+            if (rightDragFrame.current !== undefined) cancelAnimationFrame(rightDragFrame.current)
+            rightDragFrame.current = undefined
+            setIslandDragging(false)
+            if (gesture.started) {
+              moveIsland(gesture.delta, gesture.startPosition, true)
+            }
+          }
+        }}
+        onPointerCancel={event => {
+          const gesture = rightDrag.current
+          if (gesture && gesture.pointerId === event.pointerId) {
+            try {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId)
+              }
+            } catch {}
+            rightDrag.current = null
+            if (rightDragFrame.current !== undefined) cancelAnimationFrame(rightDragFrame.current)
+            rightDragFrame.current = undefined
+            setIslandDragging(false)
+          }
+        }}
         onPointerEnter={() => {
           window.clearTimeout(intent.current)
           const current = useIsland.getState()
@@ -212,17 +304,23 @@ export function App() {
           }
         }}
         onPointerLeave={() => {
+          if (rightDrag.current) return
           window.clearTimeout(intent.current)
           const current = useIsland.getState()
           if (current.view === 'expanded' && (hover || current.appActive || current.circleUnlocked)) {
             intent.current = window.setTimeout(() => {
-              if (useIsland.getState().view === 'expanded') collapse()
+              if (useIsland.getState().view === 'expanded' && !rightDrag.current) collapse()
             }, CLOSE_DELAY)
           }
         }}
         onContextMenu={event => {
-          if (!circleUnlocked || (event.target as Element).closest('input, textarea, select, [contenteditable]')) return
+          if (isEditable(event.target)) return
           event.preventDefault()
+          if (hasDraggedRef.current) {
+            hasDraggedRef.current = false
+            return
+          }
+          if (!circleUnlocked) return
           lockCircle(rest)
         }}
         onPointerDownCapture={event => {
@@ -234,6 +332,7 @@ export function App() {
       <m.section
         key={visible}
         className={`island ${visible}`}
+        data-dragging={islandDragging}
         initial={frame.from ? { opacity: 0.85, scaleX: Math.max(0.1, fromWidth / width), scaleY: Math.max(0.13, fromHeight / height) } : false}
         animate={{ opacity: closing ? 0.78 : 1, scaleX: toWidth / width, scaleY: toHeight / height }}
         transition={closing ? retract : spring}
