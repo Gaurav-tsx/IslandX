@@ -30,15 +30,15 @@ export function MusicSearch() {
         void searchMusic(term)
       }
     }}>
-      <input type="search" aria-label="Search YouTube Music" placeholder="Search YouTube Music"
+      <input type="search" aria-label="Search YouTube Music" placeholder="search youtube music"
         value={input} onChange={event => setInput(event.target.value)} maxLength={120} disabled={!desktop} required />
       <GlassButton variant="icon" type="submit" aria-label="Search" disabled={!desktop || !input.trim()}><Search size={17} /></GlassButton>
       <GlassButton variant="icon" aria-label="Music history" title="Music history" aria-expanded={historyOpen}
         aria-controls="music-history" onClick={() => setHistoryOpen(open => !open)}><History size={17} /></GlassButton>
     </form>
-    {pending && <p className="subtle music-search-message" role="status">Searching…</p>}
+    {pending && <p className="subtle music-search-message" role="status">searching…</p>}
     {error && <p className="subtle music-search-message" role="status">{error}</p>}
-    {!pending && query && !error && !results.length && <p className="subtle music-search-message">No songs or playlists found.</p>}
+    {!pending && query && !error && !results.length && <p className="subtle music-search-message">no songs or playlists found.</p>}
     {historyOpen ? <section id="music-history" className="music-history" aria-label="Music history" tabIndex={0}>
       <div>
         <h2>Recent songs</h2>

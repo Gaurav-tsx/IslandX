@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { errorText, native } from './native'
 import { notice } from './state'
+import { fillStyle } from './ui'
 
 let pendingVolume: number | undefined
 let writingVolume = false
@@ -51,6 +52,7 @@ export function VolumeSlider({ value, onVolume }: {
 
   return <input ref={input} type="range" min={0} max={100} aria-label="Output volume"
     aria-valuetext={value === undefined ? undefined : `${value}%`}
+    style={fillStyle(value ?? 0)}
     disabled={value === undefined} value={value ?? 0}
     onChange={event => change(event.currentTarget.valueAsNumber)} />
 }

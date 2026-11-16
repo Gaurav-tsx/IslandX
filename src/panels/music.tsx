@@ -3,6 +3,7 @@ import { AudioLines, Pause, Play, SkipBack, SkipForward, Volume2 } from 'lucide-
 import { desktop, errorText, native } from '../native'
 import { GlassButton, GlassCard } from '../glass'
 import { notice } from '../state'
+import { fillStyle } from '../ui'
 import { VolumeSlider } from '../volume'
 import { playMusic, useMusicHistory, useYouTubePlayer, youtubeAction, type PlaybackAction } from '../youtube-music'
 import { MusicSearch } from './music-search'
@@ -64,12 +65,15 @@ export default function Music() {
 
   return <GlassCard className="music" blur="standard">
     <div className="music-main">
-      <div className="album">{song?.art ? <img src={song.art} alt="" onLoad={event => applyAlbumColor(event.currentTarget)} /> : <AudioLines size={46} strokeWidth={1.4} />}</div>
+      <div className="album" data-playing={Boolean(player.song?.playing)}>{song?.art ? <img key={song.art} src={song.art} alt="" onLoad={event => applyAlbumColor(event.currentTarget)} /> : <AudioLines size={46} strokeWidth={1.4} />}</div>
       <div className="track">
-        <span className="track-label">{player.song ? 'NOW PLAYING' : recent ? 'LAST PLAYED' : 'MUSIC'}</span>
+        <div className="track-head">
+          <span className="track-label">{player.song ? 'now playing' : recent ? 'last played' : 'music'}</span>
+          {player.song?.playing && <span className="eq" aria-hidden="true"><i /><i /><i /></span>}
+        </div>
         <h1 title={song?.title}>{song?.title || 'YouTube Music'}</h1>
-        <p title={song?.artist}>{player.ad ? 'Waiting for the track…' : song?.artist ||
-          (player.ready ? 'Search for a song or playlist.' : desktop ? 'Loading YouTube Music…' : 'YouTube Music is available in the Windows app.')}</p>
+        <p title={song?.artist}>{player.ad ? 'waiting for the track…' : song?.artist ||
+          (player.ready ? 'search for a song or playlist.' : desktop ? 'loading youtube music…' : 'youtube music is available in the windows app.')}</p>
       </div>
       <div className="media-controls">
         <GlassButton variant="icon" disabled={!player.song} aria-label="Previous track" onClick={() => act('previous')}><SkipBack size={17} fill="currentColor" /></GlassButton>
@@ -79,7 +83,8 @@ export default function Music() {
         <GlassButton variant="icon" disabled={!player.song} aria-label="Next track" onClick={() => act('next')}><SkipForward size={17} fill="currentColor" /></GlassButton>
       </div>
     </div>
-    <input className="timeline" type="range" min={0} max={song?.duration || 1} value={position} disabled={!player.song?.duration} aria-label="Playback position" onChange={event => {
+    <input className="timeline" type="range" min={0} max={song?.duration || 1} value={position} style={fillStyle(position, 0, song?.duration || 1)}
+      aria-valuetext={`${timestamp(position)} of ${timestamp(song?.duration ?? 0)}`} disabled={!player.song?.duration} aria-label="Playback position" onChange={event => {
       const seconds = Number(event.target.value)
       setPosition(seconds)
       act('seek', seconds)

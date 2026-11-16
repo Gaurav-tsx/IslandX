@@ -31,7 +31,7 @@ export default function Shelf() {
         <GlassButton variant="primary" onClick={() => void choose()}><Plus size={15} /> Add files</GlassButton>
       </div>
     </PanelHeading>
-    {shelf.length === 0 ? <p className="empty">Drop files onto the island for quick access.</p> : <div className="file-list">
+    {shelf.length === 0 ? <p className="empty">drop files onto the island for quick access.</p> : <div className="file-list">
       {shelf.map(path => {
         const name = path.split(/[\\/]/).pop() || path
         const Icon = iconFor(name)

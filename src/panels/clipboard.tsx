@@ -29,10 +29,10 @@ export default function Clipboard() {
       </div>
     </PanelHeading>
     {items.length > 0 && <input aria-label="Search clipboard" placeholder="Search clipboard" value={query} onChange={event => setQuery(event.target.value)} />}
-    {items.length === 0 && <p className="empty">{enabled ? 'Copied text will appear here.' : 'Turn on capture to keep a local, encrypted text history.'}</p>}
+    {items.length === 0 && <p className="empty">{enabled ? 'copied text will appear here.' : 'turn on capture to keep a local, encrypted text history.'}</p>}
     {items.filter(item => item.text.toLowerCase().includes(query.toLowerCase())).sort((a, b) => Number(b.pinned) - Number(a.pinned)).map(item =>
       <div key={item.id} className="list-item">
-        <GlassButton variant="bare" className="row" title="Copy to clipboard" onClick={() => void native('clipboard_copy', { id: item.id }).then(() => notice('Copied to clipboard')).catch(error => notice(errorText(error)))}>
+        <GlassButton variant="bare" className="row" title="Copy to clipboard" onClick={() => void native('clipboard_copy', { id: item.id }).then(() => notice('copied to clipboard')).catch(error => notice(errorText(error)))}>
           <Copy size={13} className="shrink-0" /><span className="tile-text">{item.text}</span>
         </GlassButton>
         <GlassButton variant="icon" aria-label={item.pinned ? 'Unpin' : 'Pin'} aria-pressed={item.pinned} onClick={() => void native('clipboard_pin', { id: item.id }).catch(error => notice(errorText(error)))}><Pin size={14} fill={item.pinned ? 'currentColor' : 'none'} /></GlassButton>

@@ -40,6 +40,18 @@ const tabs = [
 const spring = { type: 'spring', stiffness: 500, damping: 36, mass: 0.75 } as const
 const retract = { type: 'tween', duration: 0.16, ease: [0.25, 0.84, 0.44, 1] } as const
 
+// Panels slide in from the side the new tab sits on; only opacity/transform so the glass blur stays crisp.
+const panelMotion = {
+  enter: (direction: number) => ({ opacity: 0, x: direction * 16 }),
+  center: { opacity: 1, x: 0 },
+  exit: (direction: number) => ({ opacity: 0, x: direction * -10 }),
+}
+const panelTransition = { duration: 0.18, ease: [0.22, 1, 0.36, 1] } as const
+
+// Waiting a beat before opening/closing stops accidental fly-bys from flickering the island.
+const OPEN_DELAY = 60
+const CLOSE_DELAY = 160
+
 export function App() {
   const { view, tab, status, appActive, circleUnlocked } = useIsland()
   const { surface, glassQuality, glassBlur, glassGloss, hover, monitor, captureClipboard } = usePreferences()
@@ -48,6 +60,11 @@ export function App() {
   const Panel = panels[tab]
   const light = useRef<HTMLSpanElement>(null)
   const lightFrame = useRef<number | undefined>(undefined)
+  const nav = useRef<HTMLElement>(null)
+  const intent = useRef<number | undefined>(undefined)
+  const tabIndex = tabs.findIndex(([id]) => id === tab)
+  const previousTab = useRef(tabIndex)
+  const direction = tabIndex >= previousTab.current ? 1 : -1
   const reduceMotion = useReducedMotion()
   const { frame, complete } = useIslandMotion(view, Boolean(reduceMotion))
   const visible = frame.view
@@ -63,6 +80,18 @@ export function App() {
   const [toWidth, toHeight] = sizes[frame.closeTo ?? visible]
 
   useEffect(startUpdates, [])
+  useEffect(() => { previousTab.current = tabIndex }, [tabIndex])
+  useEffect(() => () => window.clearTimeout(intent.current), [])
+
+  // Measure the active tab so the highlight can glide to it.
+  useLayoutEffect(() => {
+    const bar = nav.current
+    const active = bar?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!bar || !active) return
+    bar.style.setProperty('--pill-x', `${active.offsetLeft}px`)
+    bar.style.setProperty('--pill-w', `${active.offsetWidth}px`)
+  }, [tab, open])
+
   useEffect(() => () => {
     if (lightFrame.current !== undefined) cancelAnimationFrame(lightFrame.current)
     lightFrame.current = undefined
@@ -172,13 +201,24 @@ export function App() {
         style={!desktop ? { width, height } : undefined}
         onPointerMove={sweep ? moveLight : undefined}
         onPointerEnter={() => {
+          window.clearTimeout(intent.current)
           const current = useIsland.getState()
           const canHover = current.circleUnlocked || (hover && !current.appActive)
-          if (canHover && (current.view === 'collapsed' || current.view === 'compact')) openFromRest()
+          if (canHover && (current.view === 'collapsed' || current.view === 'compact')) {
+            intent.current = window.setTimeout(() => {
+              const latest = useIsland.getState()
+              if (latest.view === 'collapsed' || latest.view === 'compact') openFromRest()
+            }, OPEN_DELAY)
+          }
         }}
         onPointerLeave={() => {
+          window.clearTimeout(intent.current)
           const current = useIsland.getState()
-          if (current.view === 'expanded' && (hover || current.appActive || current.circleUnlocked)) collapse()
+          if (current.view === 'expanded' && (hover || current.appActive || current.circleUnlocked)) {
+            intent.current = window.setTimeout(() => {
+              if (useIsland.getState().view === 'expanded') collapse()
+            }, CLOSE_DELAY)
+          }
         }}
         onContextMenu={event => {
           if (!circleUnlocked || (event.target as Element).closest('input, textarea, select, [contenteditable]')) return
@@ -207,11 +247,17 @@ export function App() {
         <m.div className="island-content" inert={closing}
           initial={frame.from ? { opacity: 0, y: -7 } : false}
           animate={{ opacity: closing ? 0 : 1, y: closing ? -5 : 0 }}
-          transition={{ duration: closing ? 0.09 : 0.16, ease: 'easeOut' }}>
+          transition={closing ? { duration: 0.09, ease: 'easeOut' } : { duration: 0.22, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}>
         {open ? <>
           <header className="toolbar">
             <span className="brand-mark" title={circleUnlocked ? 'Right-click to lock hover' : 'IslandX'}><i /><i /></span>
-            <nav aria-label="Panels">
+            <nav aria-label="Panels" ref={nav} onKeyDown={event => {
+              if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
+              event.preventDefault()
+              const step = event.key === 'ArrowRight' ? 1 : tabs.length - 1
+              selectTab(tabs[(tabIndex + step) % tabs.length][0])
+              requestAnimationFrame(() => nav.current?.querySelector<HTMLElement>('[aria-current="page"]')?.focus())
+            }}>
               {tabs.map(([id, label, Icon]) =>
                 <GlassButton variant="tab" key={id} aria-current={id === tab ? 'page' : undefined} aria-label={label} title={label} onClick={() => selectTab(id)}>
                   <Icon size={16} strokeWidth={1.75} />
@@ -223,21 +269,27 @@ export function App() {
               <GlassButton variant="icon" title="Collapse" aria-label="Collapse" onClick={collapse}><ChevronDown size={17} /></GlassButton>
             </div>
           </header>
-          <AnimatePresence mode="wait" initial={false}>
-            <m.div className="panel" key={tab} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
-              <Suspense fallback={<p className="empty" role="status">Opening panel…</p>}>
+          <AnimatePresence mode="wait" initial={false} custom={direction}>
+            <m.div className="panel" key={tab} custom={direction} variants={panelMotion} initial="enter" animate="center" exit="exit" transition={panelTransition}>
+              <Suspense fallback={<p className="empty" role="status">opening panel…</p>}>
                 {tab === 'music' ? <Panel /> : <GlassCard className="panel-glass" blur="standard"><Panel /></GlassCard>}
               </Suspense>
             </m.div>
           </AnimatePresence>
-          {status && <GlassCard className="toast" role="status">{status}<GlassButton variant="icon" aria-label="Dismiss message" onClick={() => notice('')}><X size={14} /></GlassButton></GlassCard>}
+          <AnimatePresence>
+            {status && <m.div key="toast" className="toast-wrap"
+              initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 520, damping: 34 }}>
+              <GlassCard className="toast" role="status"><span>{status}</span><GlassButton variant="icon" aria-label="Dismiss message" onClick={() => notice('')}><X size={14} /></GlassButton></GlassCard>
+            </m.div>}
+          </AnimatePresence>
         </> : visible === 'statsBar' ? (
           <Suspense fallback={<span className="stats-loading">Reading system stats…</span>}><Stats onClose={collapse} /></Suspense>
         ) : visible === 'circle' ? <IslandCircle onUnlock={() => unlockCircle(activity ? 'settings' : undefined)} activity={activity} />
-        : <GlassButton variant="pill" aria-label={activity ? 'Open update settings' : 'Expand IslandX'}
+        : <GlassButton variant="pill" data-activity={activity} aria-label={activity ? 'Open update settings' : 'Expand IslandX'}
             title={circleUnlocked ? 'Right-click to lock hover' : undefined} onClick={openFromRest}>
           <span className="brand-mark"><i /><i /></span>
-          {activity ? (updatePhase === 'ready' ? 'Update ready' : 'Update available') : 'IslandX'}
+          {activity ? (updatePhase === 'ready' ? 'update ready' : 'update available') : 'islandx'}
           <span className="pill-dot" />
         </GlassButton>}
         </m.div>

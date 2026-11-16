@@ -3,7 +3,7 @@
   --accent-ink: #21130d;
   --accent-glow: rgb(255 152 82 / .26);
   --text: #fffaf6;
-  --muted: #eee6e0;
+  --muted: rgb(240 232 226 / .74);
   --line: rgb(255 255 255 / .16);
   --glass-fill: rgba(20, 20, 24, 0.45);
   --glass-card-fill: rgba(255, 255, 255, 0.06);
@@ -122,12 +122,16 @@
 .glass-button:disabled::after { content: none; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .desktop[data-optics="true"] .glass-button {
-    transition: transform 210ms cubic-bezier(.2, .8, .2, 1.25);
+  /* every button gets a springy press; tiles also lift a hair on hover */
+  .glass-button:not(.circle-button) {
+    transition: transform 240ms var(--ease-spring), background-color 160ms ease, border-color 160ms ease, color 160ms ease, opacity 160ms ease;
   }
-  .desktop[data-optics="true"] .glass-button:not(:disabled):hover { transform: translateY(-1px); }
-  .desktop[data-optics="true"] .glass-button:not(:disabled):active { transform: translateY(0); }
+  .glass-tile:not(:disabled):hover { transform: translateY(-1px); }
+  .glass-button:not(.circle-button):not(:disabled):active { transform: scale(.96); transition-duration: 90ms; }
 }
+
+.glass-tile { transition: background-color 160ms ease; }
+.glass-tile:not(.dashed):not(:disabled):hover { background: rgb(255 255 255 / .1); }
 
 .desktop[data-optics="false"] .glass-button::after,
 .desktop[data-optics="false"] .glass-sweep { transition: none; }

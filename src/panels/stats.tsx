@@ -28,7 +28,15 @@ export default function Stats({ onClose }: { onClose: () => void }) {
   }, [])
 
   function metric(name: string, value?: number) {
-    return <span className="row">{name} {value === undefined ? <small>n/a</small> : <><meter min={0} max={100} low={65} high={85} optimum={0} value={value} aria-label={name} />{Math.round(value)}%</>}</span>
+    if (value === undefined) return <span className="row metric">{name} <small>n/a</small></span>
+    const percent = Math.min(100, Math.max(0, value))
+    const level = percent >= 85 ? 'hot' : percent >= 65 ? 'warn' : 'ok'
+    return <span className="row metric" data-level={level}>{name}
+      <span className="bar" role="meter" aria-label={name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(percent)}>
+        <i style={{ transform: `scaleX(${percent / 100})` }} />
+      </span>
+      <b>{Math.round(percent)}%</b>
+    </span>
   }
 
   const network = sample && sample.received >= 1000 ? `${(sample.received / 1000).toFixed(1)} Mb/s` : `${sample?.received ?? '—'} kb/s`

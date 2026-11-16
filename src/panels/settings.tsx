@@ -5,7 +5,7 @@ import { GlassButton, GlassCard } from '../glass'
 import { desktop, errorText, native } from '../native'
 import { notice, setView, usePreferences } from '../state'
 import { checkUpdate, downloadUpdate, restartForUpdate, useUpdate } from '../updates'
-import { PanelHeading } from '../ui'
+import { fillStyle, PanelHeading } from '../ui'
 
 type Monitor = { index: number; name: string }
 
@@ -60,31 +60,31 @@ export default function Settings() {
   }
 
   return <>
-    <PanelHeading title="Settings"><small>Ctrl + Shift + Space</small></PanelHeading>
+    <PanelHeading title="Settings"><small className="kbd">ctrl + shift + space</small></PanelHeading>
     <div className="settings-list">
       <label className="setting">Surface<select value={prefs.surface} onChange={event => usePreferences.setState({ surface: event.target.value as typeof prefs.surface })}>
-        <option value="glass">Liquid glass</option><option value="black">Black</option>
+        <option value="glass">liquid glass</option><option value="black">black</option>
       </select></label>
       <label className="setting">Glass quality<select value={prefs.glassQuality} disabled={prefs.surface === 'black'} aria-describedby="glass-quality-hint"
         onChange={event => usePreferences.setState({ glassQuality: event.target.value as typeof prefs.glassQuality })}>
-        <option value="high">High</option><option value="balanced">Balanced</option><option value="low">Low</option>
+        <option value="high">high</option><option value="balanced">balanced</option><option value="low">low</option>
       </select></label>
       <small className="settings-hint" id="glass-quality-hint">High adds blur to nested cards. Low uses a solid surface.</small>
       <label className="setting">Blur strength<span className="settings-glass-control">
-        <input type="range" min={0} max={24} step={1} value={prefs.glassBlur} disabled={!adjustable} aria-describedby="glass-blur-hint"
+        <input type="range" min={0} max={24} step={1} value={prefs.glassBlur} style={fillStyle(prefs.glassBlur, 0, 24)} disabled={!adjustable} aria-describedby="glass-blur-hint"
           aria-valuetext={prefs.glassBlur === 0 ? 'Off' : `${prefs.glassBlur} pixels`}
           onChange={event => usePreferences.setState({ glassBlur: event.target.valueAsNumber })} />
         <output aria-hidden="true">{prefs.glassBlur ? `${prefs.glassBlur} px` : 'Off'}</output>
       </span></label>
       <small className="settings-hint" id="glass-blur-hint">Adjusts blur inside the island’s glass cards.</small>
       <label className="setting">Gloss intensity<span className="settings-glass-control">
-        <input type="range" min={0} max={100} step={5} value={prefs.glassGloss} disabled={!adjustable}
+        <input type="range" min={0} max={100} step={5} value={prefs.glassGloss} style={fillStyle(prefs.glassGloss)} disabled={!adjustable}
           aria-valuetext={`${prefs.glassGloss}%`} onChange={event => usePreferences.setState({ glassGloss: event.target.valueAsNumber })} />
         <output aria-hidden="true">{prefs.glassGloss}%</output>
       </span></label>
       <small className="glass-reduced-hint">The system’s transparency preference is active.</small>
       <label className="setting">Display<select value={prefs.monitor} onChange={event => usePreferences.setState({ monitor: Number(event.target.value) })}>
-        <option value={-1}>Primary display</option>{displays.map(display => <option value={display.index} key={display.index}>{display.name}</option>)}
+        <option value={-1}>primary display</option>{displays.map(display => <option value={display.index} key={display.index}>{display.name}</option>)}
       </select></label>
       <label className="setting">Expand on hover<input type="checkbox" checked={prefs.hover} onChange={event => usePreferences.setState({ hover: event.target.checked })} /></label>
       <label className="setting">Start with Windows<input type="checkbox" checked={autostart} disabled={!desktop} onChange={toggleStartup} /></label>

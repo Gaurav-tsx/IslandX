@@ -1,8 +1,14 @@
-import type { FormEvent, ReactNode } from 'react'
+import type { CSSProperties, FormEvent, ReactNode } from 'react'
 import { ExternalLink, X } from 'lucide-react'
 import { GlassButton } from './glass'
 import { desktop, errorText, native } from './native'
 import { notice, usePreferences, type Site } from './state'
+
+/** Paints the filled part of a range slider (see `input[type=range]` in styles.css). */
+export function fillStyle(value: number, min = 0, max = 100): CSSProperties {
+  const share = max > min ? (value - min) / (max - min) : 0
+  return { '--fill': `${Math.min(100, Math.max(0, share * 100))}%` } as CSSProperties
+}
 
 export function PanelHeading({ title, children }: { title: string; children?: ReactNode }) {
   return <div className="panel-heading"><h1>{title}</h1>{children}</div>

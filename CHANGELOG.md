@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.3
+
+- Added direction-aware sliding transitions between tabs, an animated gliding indicator highlight, and keyboard arrow navigation across panels.
+- Refined UI styling with a consistent lowercase voice for chrome, staggered entrance choreography for panel contents, and tactile button press feedback.
+- Replaced native system stat meters with animated level-aware metric bars and added custom dynamic fill tracks to volume, blur, and gloss sliders.
+- Added brief hover intent delays on opening and closing to prevent accidental flickering from pointer fly-bys.
+
 ## v0.3.2
 
 - Added local listening history for songs and playlists. Music stays on the current or last IslandX track when Windows apps play other media.

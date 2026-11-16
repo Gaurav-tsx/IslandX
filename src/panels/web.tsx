@@ -24,11 +24,11 @@ export default function Browser() {
     </PanelHeading>
     {choosing && <label className="setting browser-picker">Open sites with
       <select value={browserId ?? ''} onChange={event => usePreferences.setState({ browserId: event.target.value || null })}>
-        <option value="">IslandX Browser (default)</option>
-        <option value="system">Windows default browser</option>
+        <option value="">islandx browser (default)</option>
+        <option value="system">windows default browser</option>
         {browsers.map(browser => <option key={browser.id} value={browser.id}>{browser.name}</option>)}
         {browserId && browserId !== 'system' && !browsers.some(browser => browser.id === browserId) &&
-          <option value={browserId} disabled>Selected browser unavailable</option>}
+          <option value={browserId} disabled>selected browser unavailable</option>}
       </select>
     </label>}
     <div className="tile-grid">
