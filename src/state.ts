@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware'
 export type Tab = 'music' | 'web' | 'notifications' | 'messages' | 'shelf' | 'clipboard' | 'widgets' | 'controls' | 'actions' | 'audio' | 'settings'
 export type View = 'collapsed' | 'compact' | 'expanded' | 'statsBar'
 export type Site = { name: string; url: string }
+export type GlassQuality = 'high' | 'balanced' | 'low'
 
 export const defaultSites: Site[] = [
   { name: 'YT Music', url: 'https://music.youtube.com' },
@@ -13,8 +14,10 @@ export const defaultSites: Site[] = [
 ]
 
 type Preferences = {
-  accent: 'mint' | 'blue' | 'rose'
   surface: 'glass' | 'black'
+  glassQuality: GlassQuality
+  glassBlur: number
+  glassGloss: number
   hover: boolean
   delay: number
   monitor: number
@@ -28,8 +31,10 @@ type Preferences = {
 }
 
 export const usePreferences = create<Preferences>()(persist<Preferences, [], [], Omit<Preferences, 'shelf'>>(() => ({
-  accent: 'mint',
   surface: 'glass',
+  glassQuality: 'balanced',
+  glassBlur: 24,
+  glassGloss: 65,
   hover: true,
   delay: 900,
   monitor: -1,
@@ -42,6 +47,11 @@ export const usePreferences = create<Preferences>()(persist<Preferences, [], [],
   note: '',
 }), {
   name: 'islandx-preferences',
+  version: 1,
+  migrate: persisted => {
+    const { accent: _accent, ...preferences } = persisted as Omit<Preferences, 'shelf'> & { accent?: string }
+    return preferences
+  },
   partialize: ({ shelf: _shelf, ...preferences }) => preferences,
 }))
 

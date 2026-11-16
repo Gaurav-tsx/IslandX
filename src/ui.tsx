@@ -1,5 +1,6 @@
 import type { FormEvent, ReactNode } from 'react'
 import { ExternalLink, X } from 'lucide-react'
+import { GlassButton } from './glass'
 import { desktop, errorText, native } from './native'
 import { notice, usePreferences, type Site } from './state'
 
@@ -8,9 +9,9 @@ export function PanelHeading({ title, children }: { title: string; children?: Re
 }
 
 export function WindowsLink({ page, children }: { page: string; children: ReactNode }) {
-  return <button className="control" onClick={() => void native('open_windows_settings', { page }).catch(error => notice(errorText(error)))}>
+  return <GlassButton onClick={() => void native('open_windows_settings', { page }).catch(error => notice(errorText(error)))}>
     {children}<ExternalLink size={13} />
-  </button>
+  </GlassButton>
 }
 
 export function launchSite(url: string, embedded: boolean) {
@@ -33,8 +34,8 @@ export function SiteForm({ onSave, onClose }: { onSave: (site: Site) => void; on
   return <form className="site-form" onSubmit={submit}>
     <input autoFocus name="name" placeholder="Label" aria-label="Label" maxLength={32} />
     <input name="url" placeholder="https://example.com" aria-label="URL" maxLength={2048} required />
-    <button className="control primary" type="submit">Save</button>
-    <button className="icon-button" type="button" aria-label="Cancel" onClick={onClose}><X size={16} /></button>
+    <GlassButton variant="primary" type="submit">Save</GlassButton>
+    <GlassButton variant="icon" aria-label="Cancel" onClick={onClose}><X size={16} /></GlassButton>
   </form>
 }
 

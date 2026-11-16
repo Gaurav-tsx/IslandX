@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.0
+
+- Restyled the overlay, Music, system stats, and every panel with liquid glass and an orange accent.
+- Added Windows Acrylic, glass quality presets, adjustable card blur, and adjustable gloss. Windows transparency preferences override effects.
+- Paused Acrylic, backdrop filters, and cursor lighting when the island is collapsed.
+
 ## v0.1.1
 
 - Update checks and downloads try alternate server addresses when a GitHub CDN connection stalls.

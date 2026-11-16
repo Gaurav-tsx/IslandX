@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowDown, ChevronUp } from 'lucide-react'
 import { desktop, native } from '../native'
+import { GlassButton, GlassCard } from '../glass'
 
 type Sample = { cpu: number; ram: number; received: number }
 
@@ -31,10 +32,10 @@ export default function Stats({ onClose }: { onClose: () => void }) {
   }
 
   const network = sample && sample.received >= 1000 ? `${(sample.received / 1000).toFixed(1)} Mb/s` : `${sample?.received ?? '—'} kb/s`
-  return <div className="stats">
+  return <GlassCard className="stats" blur="standard">
     {metric('CPU', sample?.cpu)}{metric('GPU')}{metric('RAM', sample?.ram)}
     <span className="row" title="Receive rate"><ArrowDown size={13} />{network}</span>
     <time>{time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
-    <button className="icon-button" onClick={onClose} aria-label="Close system stats"><ChevronUp size={16} /></button>
-  </div>
+    <GlassButton variant="icon" onClick={onClose} aria-label="Close system stats"><ChevronUp size={16} /></GlassButton>
+  </GlassCard>
 }

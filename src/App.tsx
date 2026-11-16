@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
+import type { CSSProperties, PointerEvent } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
-import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m } from 'framer-motion'
+import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m, useReducedMotion } from 'framer-motion'
 import {
   Activity, Bell, ChevronDown, Clipboard, FolderOpen, Globe2, Grid2X2, Headphones,
   MessageCircle, Music2, Settings2, SlidersHorizontal, Grip, X,
@@ -10,6 +11,7 @@ import { desktop, errorText, native } from './native'
 import { notice, selectTab, setView, useIsland, usePreferences, type Tab } from './state'
 import { mergeShelf, saveShelf } from './ui'
 import { startUpdates, useUpdate } from './updates'
+import { GlassButton, GlassCard, useGlassBackdrop } from './glass'
 
 const panels = {
   music: lazy(() => import('./panels/music')),
@@ -44,15 +46,25 @@ const spring = { type: 'spring', stiffness: 300, damping: 30 } as const
 
 export function App() {
   const { view, tab, status } = useIsland()
-  const { accent, surface, hover, delay, monitor, captureClipboard } = usePreferences()
+  const { surface, glassQuality, glassBlur, glassGloss, hover, delay, monitor, captureClipboard } = usePreferences()
   const updatePhase = useUpdate(update => update.phase)
   const activity = updatePhase === 'ready' || updatePhase === 'available'
   const Panel = panels[tab]
   const leave = useRef<number | undefined>(undefined)
+  const light = useRef<HTMLSpanElement>(null)
+  const lightFrame = useRef<number | undefined>(undefined)
+  const reduceMotion = useReducedMotion()
   const open = view === 'expanded'
+  const optical = (open || view === 'statsBar') && surface === 'glass' && glassQuality !== 'low'
+  const { available, translucent } = useGlassBackdrop(optical && glassBlur > 0)
+  const sweep = optical && available && glassGloss > 0 && !reduceMotion
   const [width, height] = sizes[view]
 
   useEffect(startUpdates, [])
+  useEffect(() => () => {
+    if (lightFrame.current !== undefined) cancelAnimationFrame(lightFrame.current)
+    lightFrame.current = undefined
+  }, [view, sweep])
 
   useEffect(() => {
     if (!desktop) {
@@ -116,8 +128,24 @@ export function App() {
     setView(activity ? 'compact' : 'collapsed')
   }
 
+  function moveLight(event: PointerEvent<HTMLElement>) {
+    if (!light.current) return
+    if (lightFrame.current !== undefined) cancelAnimationFrame(lightFrame.current)
+    const panel = event.currentTarget
+    const { clientX, clientY } = event
+    lightFrame.current = requestAnimationFrame(() => {
+      if (light.current) {
+        const bounds = panel.getBoundingClientRect()
+        light.current.style.transform = `translate3d(${clientX - bounds.left - 8}px, ${clientY - bounds.top}px, 0)`
+      }
+      lightFrame.current = undefined
+    })
+  }
+
   return <MotionConfig reducedMotion="user"><LazyMotion features={domAnimation}>
-    <main className="desktop" data-accent={accent} data-surface={surface} data-preview={!desktop} onKeyDown={event => {
+    <main className="desktop" data-surface={surface} data-preview={!desktop}
+      data-quality={glassQuality} data-optics={optical && available} data-translucent={translucent} data-transparency={available}
+      style={{ '--glass-blur': `${glassBlur}px`, '--glass-gloss': glassGloss / 100 } as CSSProperties} onKeyDown={event => {
       if (event.key === 'Escape') collapse()
     }}>
       <m.section
@@ -127,6 +155,7 @@ export function App() {
         animate={{ opacity: 1, scaleX: 1, scaleY: 1 }}
         transition={spring}
         aria-label="IslandX"
+        onPointerMove={sweep ? moveLight : undefined}
         onPointerEnter={() => {
           window.clearTimeout(leave.current)
           if (hover && useIsland.getState().view === 'collapsed') setView('expanded')
@@ -143,34 +172,40 @@ export function App() {
           }
         }}
       >
+        <span aria-hidden="true" className="glass-shell">
+          {optical && available && <><span className="glass-grain" /><span className="glass-gloss" /></>}
+          {sweep && <span ref={light} className="glass-sweep" />}
+        </span>
         {open ? <>
           <header className="toolbar">
             <span className="brand-mark" title="IslandX"><i /><i /></span>
             <nav aria-label="Panels">
               {tabs.map(([id, label, Icon]) =>
-                <button className="nav-button" key={id} aria-current={id === tab ? 'page' : undefined} aria-label={label} title={label} onClick={() => selectTab(id)}>
+                <GlassButton variant="tab" key={id} aria-current={id === tab ? 'page' : undefined} aria-label={label} title={label} onClick={() => selectTab(id)}>
                   <Icon size={16} strokeWidth={1.75} />
-                </button>,
+                </GlassButton>,
               )}
             </nav>
             <div className="window-controls">
-              <button className="icon-button" title="System stats" aria-label="System stats" onClick={() => setView('statsBar')}><Activity size={16} /></button>
-              <button className="icon-button" title="Collapse" aria-label="Collapse" onClick={collapse}><ChevronDown size={17} /></button>
+              <GlassButton variant="icon" title="System stats" aria-label="System stats" onClick={() => setView('statsBar')}><Activity size={16} /></GlassButton>
+              <GlassButton variant="icon" title="Collapse" aria-label="Collapse" onClick={collapse}><ChevronDown size={17} /></GlassButton>
             </div>
           </header>
           <AnimatePresence mode="wait" initial={false}>
             <m.div className="panel" key={tab} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
-              <Suspense fallback={<p className="empty" role="status">Opening panel…</p>}><Panel /></Suspense>
+              <Suspense fallback={<p className="empty" role="status">Opening panel…</p>}>
+                {tab === 'music' ? <Panel /> : <GlassCard className="panel-glass" blur="standard"><Panel /></GlassCard>}
+              </Suspense>
             </m.div>
           </AnimatePresence>
-          {status && <div className="toast" role="status">{status}<button className="icon-button" aria-label="Dismiss message" onClick={() => notice('')}><X size={14} /></button></div>}
+          {status && <GlassCard className="toast" role="status">{status}<GlassButton variant="icon" aria-label="Dismiss message" onClick={() => notice('')}><X size={14} /></GlassButton></GlassCard>}
         </> : view === 'statsBar' ? (
           <Suspense fallback={<span className="stats-loading">Reading system stats…</span>}><Stats onClose={collapse} /></Suspense>
-        ) : <button className="pill" aria-label={activity ? 'Open update settings' : 'Expand IslandX'} onClick={() => activity ? selectTab('settings') : setView('expanded')}>
+        ) : <GlassButton variant="pill" aria-label={activity ? 'Open update settings' : 'Expand IslandX'} onClick={() => activity ? selectTab('settings') : setView('expanded')}>
           <span className="brand-mark"><i /><i /></span>
           {activity ? (updatePhase === 'ready' ? 'Update ready' : 'Update available') : 'IslandX'}
           <span className="pill-dot" />
-        </button>}
+        </GlassButton>}
       </m.section>
     </main>
   </LazyMotion></MotionConfig>

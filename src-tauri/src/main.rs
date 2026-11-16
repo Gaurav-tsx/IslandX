@@ -3,6 +3,7 @@
 mod audio;
 mod clipboard;
 mod desktop;
+mod glass;
 mod media;
 mod stats;
 mod updates;
@@ -34,7 +35,9 @@ fn main() {
         .manage(media::MediaState::default())
         .manage(clipboard::ClipboardState::default())
         .manage(updates::UpdateState::default())
+        .manage(glass::GlassState::default())
         .invoke_handler(tauri::generate_handler![
+            glass::set_glass,
             window::island_layout,
             window::monitors,
             window::set_keyboard,
@@ -64,6 +67,7 @@ fn main() {
             clipboard::clipboard_clear,
         ])
         .setup(|app| {
+            glass::observe(app.handle());
             let show = MenuItem::with_id(app, "show", "Toggle IslandX", true, None::<&str>)?;
             let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit IslandX", true, None::<&str>)?;

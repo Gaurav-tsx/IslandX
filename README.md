@@ -13,7 +13,9 @@ IslandX is a small, always-on-top Windows overlay inspired by the Dynamic Island
 - Open saved sites and chat apps in an isolated WebView2 window with its own persistent profile.
 - Opt into Windows-user-encrypted text clipboard history with search, pinning, and copy.
 - Set volume, mute the default microphone, keep notes, and use a focus timer.
-- Set the display, colors, hover delay, Windows startup, and automatic update preference.
+- Set the display, surface, hover delay, Windows startup, and automatic update preference.
+
+**Settings** includes High, Balanced, and Low glass quality, a card blur slider, and a gloss slider. Expanded panels and the stats bar use Windows Acrylic when transparency effects are available. The Low preset and Black surface use an opaque background. IslandX respects the Windows transparency setting and disables Acrylic while collapsed.
 
 The overlay works over normal windows and borderless/windowed fullscreen apps. Exclusive fullscreen is outside the scope of a regular topmost window. Snipping Tool recording requires a supported Windows 11 release. GPU and temperature telemetry, phone transfer, and native notification history are unavailable in this preview. The Notifications panel links to Windows settings.
 

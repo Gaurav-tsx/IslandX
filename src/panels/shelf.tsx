@@ -1,5 +1,6 @@
 import { open } from '@tauri-apps/plugin-dialog'
 import { Archive, File, FileAudio, FileImage, FileVideo, Plus, X } from 'lucide-react'
+import { GlassButton, GlassTile } from '../glass'
 import { desktop, errorText, native } from '../native'
 import { notice, usePreferences } from '../state'
 import { mergeShelf, PanelHeading, saveShelf } from '../ui'
@@ -26,8 +27,8 @@ export default function Shelf() {
   return <>
     <PanelHeading title={`Shelf · ${shelf.length} ${shelf.length === 1 ? 'file' : 'files'}`}>
       <div className="row">
-        {shelf.length > 0 && <button className="control" onClick={() => saveShelf([])}>Clear shelf</button>}
-        <button className="control primary" onClick={() => void choose()}><Plus size={15} /> Add files</button>
+        {shelf.length > 0 && <GlassButton onClick={() => saveShelf([])}>Clear shelf</GlassButton>}
+        <GlassButton variant="primary" onClick={() => void choose()}><Plus size={15} /> Add files</GlassButton>
       </div>
     </PanelHeading>
     {shelf.length === 0 ? <p className="empty">Drop files onto the island for quick access.</p> : <div className="file-list">
@@ -35,10 +36,10 @@ export default function Shelf() {
         const name = path.split(/[\\/]/).pop() || path
         const Icon = iconFor(name)
         return <div key={path} className="file-card">
-          <button className="tile" title={path} onClick={() => void native('open_file', { path }).catch(error => notice(errorText(error)))}>
+          <GlassTile title={path} onClick={() => void native('open_file', { path }).catch(error => notice(errorText(error)))}>
             <Icon size={31} strokeWidth={1.5} /><span className="tile-text">{name}</span>
-          </button>
-          <button className="icon-button" aria-label={`Remove ${name} from shelf`} onClick={() => saveShelf(usePreferences.getState().shelf.filter(file => file !== path))}><X size={13} /></button>
+          </GlassTile>
+          <GlassButton variant="icon" aria-label={`Remove ${name} from shelf`} onClick={() => saveShelf(usePreferences.getState().shelf.filter(file => file !== path))}><X size={13} /></GlassButton>
         </div>
       })}
     </div>}

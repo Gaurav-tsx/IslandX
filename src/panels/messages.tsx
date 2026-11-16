@@ -1,4 +1,5 @@
 import { MessageCircle } from 'lucide-react'
+import { GlassTile } from '../glass'
 import { launchSite, PanelHeading } from '../ui'
 
 const chats = [
@@ -10,8 +11,8 @@ const chats = [
 export default function Messages() {
   return <>
     <PanelHeading title="Messages" />
-    <div className="tile-grid">{chats.map(chat => <button className="tile" key={chat.url} onClick={() => launchSite(chat.url, true)}>
+    <div className="tile-grid">{chats.map(chat => <GlassTile key={chat.url} onClick={() => launchSite(chat.url, true)}>
       <MessageCircle size={18} />{chat.name}
-    </button>)}</div>
+    </GlassTile>)}</div>
   </>
 }

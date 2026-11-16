@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { GlassButton } from '../glass'
 import { usePreferences } from '../state'
 import { PanelHeading } from '../ui'
 
@@ -19,11 +20,11 @@ export default function Widgets() {
     <div className="widget-grid">
       <div><label htmlFor="note">Notes</label><textarea id="note" value={note} maxLength={4000} onChange={event => usePreferences.setState({ note: event.target.value })} /></div>
       <div><p>Focus timer</p><p className="clock">{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}</p>
-        <button className="control" onClick={() => {
+        <GlassButton onClick={() => {
           const time = Date.now()
           setNow(time)
           setEnd(end && remaining > 0 ? null : time + minutes * 60_000)
-        }}>{end && remaining > 0 ? 'Reset' : 'Start 25 min'}</button>
+        }}>{end && remaining > 0 ? 'Reset' : 'Start 25 min'}</GlassButton>
       </div>
     </div>
   </>

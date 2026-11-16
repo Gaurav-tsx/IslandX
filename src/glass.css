@@ -1,0 +1,156 @@
+.desktop {
+  --accent: #ffb479;
+  --accent-ink: #21130d;
+  --accent-glow: rgb(255 152 82 / .26);
+  --text: #fffaf6;
+  --muted: #eee6e0;
+  --line: rgb(255 255 255 / .16);
+  --glass-fill: rgba(20, 20, 24, 0.45);
+  --glass-card-fill: rgba(255, 255, 255, 0.06);
+  --solid-fill: #19171b;
+  --surface: var(--solid-fill);
+  --glass-edge: linear-gradient(135deg, rgb(255 255 255 / .28), rgb(255 255 255 / .04) 85%);
+  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / .14), inset 0 -1px 0 rgb(0 0 0 / .26);
+  --glass-shadow: 0 12px 28px rgb(0 0 0 / .28), 0 3px 8px rgb(0 0 0 / .24);
+  --glass-radius: 24px;
+  --glass-gloss: .65;
+  --glass-blur: 24px;
+  color: var(--text);
+}
+
+.desktop[data-surface="black"] { --solid-fill: #0d0d10; }
+.desktop[data-translucent="true"] { --surface: var(--glass-fill); }
+
+.glass-shell {
+  position: absolute;
+  z-index: -1;
+  inset: 0 8px;
+  overflow: hidden;
+  border-radius: 0 0 27px 27px;
+  background: var(--surface);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+  pointer-events: none;
+}
+
+.desktop[data-translucent="true"] .glass-shell {
+  /* Keep the translucent material legible over white and highly saturated windows. */
+  background: linear-gradient(var(--glass-fill), var(--glass-fill)), rgb(16 14 18 / .70);
+}
+
+.desktop[data-preview="true"][data-translucent="true"] .glass-shell {
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+}
+
+.glass-shell::before,
+.glass-card::before,
+.glass-tile::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--glass-edge);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  content: "";
+  pointer-events: none;
+}
+
+.glass-gloss,
+.glass-grain { position: absolute; inset: 0; }
+
+.glass-gloss {
+  background:
+    linear-gradient(112deg, transparent 20%, rgb(255 255 255 / .12) 33%, rgb(255 255 255 / .035) 54%, transparent 70%),
+    linear-gradient(180deg, rgb(255 255 255 / .08), transparent 46%);
+  opacity: var(--glass-gloss);
+}
+
+.glass-grain {
+  background: url("./glass-grain.png") repeat;
+  opacity: .03;
+  mix-blend-mode: soft-light;
+}
+
+.glass-sweep {
+  position: absolute;
+  top: -136px;
+  left: -136px;
+  width: 272px;
+  height: 272px;
+  background: radial-gradient(circle, rgb(255 237 222 / .11), rgb(255 232 213 / .045) 44%, transparent 70%);
+  opacity: 0;
+  transform: translate3d(-272px, -272px, 0);
+  transition: opacity 180ms ease-out;
+}
+
+.island:hover .glass-sweep { opacity: var(--glass-gloss); }
+
+.glass-card {
+  position: relative;
+  border-radius: var(--glass-radius);
+  background: linear-gradient(var(--glass-card-fill), var(--glass-card-fill)), rgb(16 14 18 / .48);
+  box-shadow: var(--glass-highlight), 0 5px 14px rgb(0 0 0 / .16);
+}
+
+/* Only the active panel, two Settings cards in High, or the stats card can use this filter. */
+.desktop[data-translucent="true"] .glass-card[data-blur="standard"],
+.desktop[data-translucent="true"][data-quality="high"] .glass-card[data-blur="high"] {
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+}
+
+.glass-button { position: relative; }
+
+.glass-button::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgb(255 255 255 / .07);
+  opacity: 0;
+  transition: opacity 150ms ease;
+  content: "";
+  pointer-events: none;
+}
+
+.glass-button:not(:disabled):hover::after { opacity: 1; }
+.glass-button:disabled::after { content: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .desktop[data-optics="true"] .glass-button {
+    transition: transform 210ms cubic-bezier(.2, .8, .2, 1.25);
+  }
+  .desktop[data-optics="true"] .glass-button:not(:disabled):hover { transform: translateY(-1px); }
+  .desktop[data-optics="true"] .glass-button:not(:disabled):active { transform: translateY(0); }
+}
+
+.desktop[data-optics="false"] .glass-button::after,
+.desktop[data-optics="false"] .glass-sweep { transition: none; }
+
+.glass-tile {
+  background: var(--glass-card-fill);
+  box-shadow: var(--glass-highlight), 0 3px 8px rgb(0 0 0 / .18);
+}
+
+.glass-tile.dashed {
+  background: transparent;
+  box-shadow: none;
+}
+
+.glass-tile.dashed::before { content: none; }
+
+.glass-button.primary {
+  color: var(--accent-ink);
+  background: linear-gradient(150deg, #ffc292, #ffa968 90%);
+  border-color: rgb(255 217 186 / .72);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .52), 0 3px 12px var(--accent-glow);
+}
+
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .desktop {
+    --glass-fill: #19171b;
+    --glass-card-fill: #262329;
+  }
+  .glass-gloss, .glass-grain, .glass-sweep { display: none; }
+  .desktop .glass-card[data-blur],
+  .desktop .glass-shell { backdrop-filter: none !important; }
+}
