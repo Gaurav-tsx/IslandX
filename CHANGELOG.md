@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.5
+
+- Added Slim strip (auto-hide) mode: collapses the resting island into a 4px sensor line at the top screen edge so it never covers browser tabs, window headers, or maximized applications.
+- Cursor movement to the top center edge instantly and fluidly springs the island back into view.
+- Added an optional "Invisible trigger strip" setting in Settings for users who prefer a completely seamless, invisible top trigger zone until hovered.
+- Added Corner radius slider (0% square to 100% round) in Settings that dynamically shapes the island, glass shell, and native Win32 window clipping region.
+- Added 8 new surface themes: Pure Black (OLED), Graphite, Acrylic, Rosé, Lavender, Peach, Sakura, and Candy Glass alongside Liquid Glass and Black.
+
 ## v0.3.4
 
 - Removed the Windows window title bar and caption frame flicker during deactivation and sizing transitions.

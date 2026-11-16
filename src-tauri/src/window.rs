@@ -44,12 +44,22 @@ pub fn monitors(window: WebviewWindow) -> Result<Vec<Display>, String> {
         .collect())
 }
 
-fn shape(hwnd: HWND, width: i32, height: i32, scale: f64, circle: bool) -> Result<(), String> {
+fn shape(
+    hwnd: HWND,
+    width: i32,
+    height: i32,
+    scale: f64,
+    circle: bool,
+    corner_scale: f64,
+) -> Result<(), String> {
     unsafe {
         let region = if circle {
             CreateEllipticRgn(0, 0, width, height)
+        } else if height <= 8 {
+            CreateRoundRectRgn(0, 0, width, height, 0, 0)
         } else {
-            let diameter = ((48.0 * scale).round() as i32).min(height).min(width);
+            let max_diameter = ((48.0 * scale).round() as i32).min(height).min(width);
+            let diameter = ((max_diameter as f64) * corner_scale.clamp(0.0, 1.0)).round() as i32;
             CreateRoundRectRgn(0, 0, width, height, diameter, diameter)
         };
         if region.is_invalid() {
@@ -135,11 +145,13 @@ pub fn island_layout(
     height: u32,
     monitor: i32,
     anchor: Option<f64>,
+    corner_radius: Option<f64>,
 ) -> Result<(), String> {
     let circle = width == CIRCLE && height == CIRCLE;
-    if (!circle && (!(150..=640).contains(&width) || !(28..=360).contains(&height)))
+    if (!circle && (!(150..=640).contains(&width) || !(2..=360).contains(&height)))
         || monitor < -1
         || anchor.is_some_and(|x| !(0.0..=1.0).contains(&x))
+        || corner_radius.is_some_and(|x| !(0.0..=1.0).contains(&x))
     {
         return Err("Unsupported island size, position, or monitor.".into());
     }
@@ -185,7 +197,7 @@ pub fn island_layout(
         )
         .map_err(|error| error.to_string())?;
     }
-    shape(hwnd, w, h, scale, circle)?;
+    shape(hwnd, w, h, scale, circle, corner_radius.unwrap_or(1.0))?;
     if first_show {
         window.show().map_err(|error| error.to_string())?;
     }

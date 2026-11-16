@@ -58,7 +58,10 @@ function isEditable(target: EventTarget | null) {
 
 export function App() {
   const { view, tab, status, appActive, circleUnlocked } = useIsland()
-  const { surface, glassQuality, glassBlur, glassGloss, hover, monitor, captureClipboard } = usePreferences()
+  const {
+    surface, glassQuality, glassBlur, glassGloss, cornerRadius,
+    hover, autoHide, invisibleSlim, monitor, captureClipboard,
+  } = usePreferences()
   const updatePhase = useUpdate(update => update.phase)
   const activity = updatePhase === 'ready' || updatePhase === 'available'
   const Panel = panels[tab]
@@ -74,6 +77,7 @@ export function App() {
   const rightDragFrame = useRef<number | undefined>(undefined)
   const hasDraggedRef = useRef(false)
   const [islandDragging, setIslandDragging] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
   const nav = useRef<HTMLElement>(null)
   const intent = useRef<number | undefined>(undefined)
   const tabIndex = tabs.findIndex(([id]) => id === tab)
@@ -89,6 +93,8 @@ export function App() {
   const translucent = optical && transparency
   const sweep = translucent && !closing && glassGloss > 0 && !reduceMotion
   const rest = activity ? 'compact' : 'collapsed'
+  const isResting = visible === 'collapsed' || visible === 'compact'
+  const isSlim = autoHide && isResting && !closing && !isHovered && !islandDragging && !circleUnlocked
   const [width, height] = sizes[visible]
   const [fromWidth, fromHeight] = sizes[frame.from ?? visible]
   const [toWidth, toHeight] = sizes[frame.closeTo ?? visible]
@@ -152,14 +158,21 @@ export function App() {
     if (!desktop) return
     const resize = () => {
       const anchor = usePreferences.getState().circlePosition
-      void native('island_layout', { width, height, monitor, anchor }).catch(error => notice(errorText(error)))
+      const corner_radius = usePreferences.getState().cornerRadius / 100
+      void native('island_layout', {
+        width,
+        height: isSlim ? 4 : height,
+        monitor,
+        anchor,
+        corner_radius,
+      }).catch(error => notice(errorText(error)))
     }
     resize()
     // WebView2 reports a device-pixel-ratio change when a monitor's scale changes.
     const dpi = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`)
     dpi.addEventListener('change', resize, { once: true })
     return () => dpi.removeEventListener('change', resize)
-  }, [width, height, monitor, visible, appActive])
+  }, [width, height, monitor, visible, appActive, isSlim, cornerRadius])
 
   useEffect(() => () => {
     if (rightDragFrame.current !== undefined) cancelAnimationFrame(rightDragFrame.current)
@@ -196,6 +209,7 @@ export function App() {
   }, [status])
 
   function collapse() {
+    setIsHovered(false)
     setView(rest)
   }
 
@@ -222,12 +236,15 @@ export function App() {
     <main className="desktop" data-surface={surface} data-preview={!desktop}
       data-quality={glassQuality} data-optics={translucent && !closing} data-translucent={translucent}
       data-transparency={transparency} data-card-blur={translucent && !closing && glassBlur > 0}
-      style={{ '--glass-blur': `${glassBlur}px`, '--glass-gloss': glassGloss / 100 } as CSSProperties} onKeyDown={event => {
+      style={{ '--glass-blur': `${glassBlur}px`, '--glass-gloss': glassGloss / 100, '--corner-scale': cornerRadius / 100 } as CSSProperties} onKeyDown={event => {
       if (event.key === 'Escape') collapse()
     }}>
       <div className={`island-frame ${visible}`}
         data-dragging={islandDragging}
-        style={!desktop ? { width, height } : undefined}
+        style={!desktop ? { width, height: isSlim ? 4 : height } : undefined}
+        onClick={() => {
+          if (isSlim) openFromRest()
+        }}
         onPointerDown={event => {
           if (event.button === 2 && open && !isEditable(event.target)) {
             try {
@@ -294,6 +311,7 @@ export function App() {
         }}
         onPointerEnter={() => {
           window.clearTimeout(intent.current)
+          setIsHovered(true)
           const current = useIsland.getState()
           const canHover = current.circleUnlocked || (hover && !current.appActive)
           if (canHover && (current.view === 'collapsed' || current.view === 'compact')) {
@@ -309,7 +327,14 @@ export function App() {
           const current = useIsland.getState()
           if (current.view === 'expanded' && (hover || current.appActive || current.circleUnlocked)) {
             intent.current = window.setTimeout(() => {
-              if (useIsland.getState().view === 'expanded' && !rightDrag.current) collapse()
+              if (useIsland.getState().view === 'expanded' && !rightDrag.current) {
+                collapse()
+                setIsHovered(false)
+              }
+            }, CLOSE_DELAY)
+          } else if (current.view === 'collapsed' || current.view === 'compact') {
+            intent.current = window.setTimeout(() => {
+              setIsHovered(false)
             }, CLOSE_DELAY)
           }
         }}
@@ -331,7 +356,7 @@ export function App() {
       >
       <m.section
         key={visible}
-        className={`island ${visible}`}
+        className={`island ${visible} ${isSlim ? (invisibleSlim ? 'slim invisible' : 'slim') : ''}`}
         data-dragging={islandDragging}
         initial={frame.from ? { opacity: 0.85, scaleX: Math.max(0.1, fromWidth / width), scaleY: Math.max(0.13, fromHeight / height) } : false}
         animate={{ opacity: closing ? 0.78 : 1, scaleX: toWidth / width, scaleY: toHeight / height }}

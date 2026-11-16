@@ -12,13 +12,21 @@
   --glass-edge: linear-gradient(135deg, rgb(255 255 255 / .28), rgb(255 255 255 / .04) 85%);
   --glass-highlight: inset 0 1px 0 rgb(255 255 255 / .14), inset 0 -1px 0 rgb(0 0 0 / .26);
   --glass-shadow: 0 12px 28px rgb(0 0 0 / .28), 0 3px 8px rgb(0 0 0 / .24);
-  --glass-radius: 24px;
+  --glass-radius: calc(24px * var(--corner-scale, 1));
   --glass-gloss: .65;
   --glass-blur: 24px;
   color: var(--text);
 }
 
 .desktop[data-surface="black"] { --solid-fill: #0d0d10; }
+.desktop[data-surface="pure-black"] { --solid-fill: #000000; --accent: #ffffff; --accent-glow: rgb(255 255 255 / .2); }
+.desktop[data-surface="graphite"] { --solid-fill: #1a1c1e; --accent: #b0b8c1; --accent-glow: rgb(176 184 193 / .2); }
+.desktop[data-surface="acrylic"] { --solid-fill: rgba(22, 22, 26, 0.85); --glass-fill: rgba(25, 25, 30, 0.65); }
+.desktop[data-surface="rose"] { --solid-fill: #221417; --glass-fill: rgba(34, 20, 23, 0.55); --accent: #ff85a1; --accent-glow: rgb(255 133 161 / .3); }
+.desktop[data-surface="lavender"] { --solid-fill: #1a1424; --glass-fill: rgba(26, 20, 36, 0.55); --accent: #c499f6; --accent-glow: rgb(196 153 246 / .3); }
+.desktop[data-surface="peach"] { --solid-fill: #241812; --glass-fill: rgba(36, 24, 18, 0.55); --accent: #ffaa71; --accent-glow: rgb(255 170 113 / .3); }
+.desktop[data-surface="sakura"] { --solid-fill: #22151b; --glass-fill: rgba(34, 21, 27, 0.55); --accent: #f7a8b8; --accent-glow: rgb(247 168 184 / .3); }
+.desktop[data-surface="candy"] { --solid-fill: #121922; --glass-fill: rgba(18, 25, 34, 0.55); --accent: #70d6ff; --accent-glow: rgb(112 214 255 / .3); }
 .desktop[data-translucent="true"] { --surface: var(--glass-fill); }
 
 .glass-shell {

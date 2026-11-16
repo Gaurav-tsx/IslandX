@@ -5,6 +5,7 @@ export type Tab = 'music' | 'web' | 'notifications' | 'messages' | 'shelf' | 'cl
 export type View = 'collapsed' | 'compact' | 'expanded' | 'statsBar' | 'circle'
 export type Site = { name: string; url: string }
 export type GlassQuality = 'high' | 'balanced' | 'low'
+export type SurfaceTheme = 'glass' | 'black' | 'pure-black' | 'graphite' | 'acrylic' | 'rose' | 'lavender' | 'peach' | 'sakura' | 'candy'
 
 export const defaultSites: Site[] = [
   { name: 'YouTube', url: 'https://www.youtube.com' },
@@ -14,11 +15,14 @@ export const defaultSites: Site[] = [
 
 type Preferences = {
   browserId: string | null
-  surface: 'glass' | 'black'
+  surface: SurfaceTheme
   glassQuality: GlassQuality
   glassBlur: number
   glassGloss: number
+  cornerRadius: number
   hover: boolean
+  autoHide: boolean
+  invisibleSlim: boolean
   circlePosition: number
   monitor: number
   autoUpdate: boolean
@@ -36,7 +40,10 @@ export const usePreferences = create<Preferences>()(persist<Preferences, [], [],
   glassQuality: 'balanced',
   glassBlur: 24,
   glassGloss: 65,
+  cornerRadius: 100,
   hover: true,
+  autoHide: false,
+  invisibleSlim: false,
   circlePosition: 0.9,
   monitor: -1,
   autoUpdate: true,
@@ -48,14 +55,15 @@ export const usePreferences = create<Preferences>()(persist<Preferences, [], [],
   note: '',
 }), {
   name: 'islandx-preferences',
-  version: 3,
+  version: 4,
   migrate: persisted => {
-    const { accent: _accent, delay: _delay, ...preferences } = persisted as Omit<Preferences, 'shelf'> & { accent?: string; delay?: number }
-    if (preferences.sites) {
-      preferences.sites = preferences.sites.filter(site => site.name !== 'YT Music' ||
-        (site.url !== 'https://music.youtube.com' && site.url !== 'https://music.youtube.com/'))
-    }
-    return preferences
+    const preferences = persisted as Partial<Preferences>
+    return {
+      cornerRadius: 100,
+      autoHide: false,
+      invisibleSlim: false,
+      ...preferences,
+    } as Omit<Preferences, 'shelf'>
   },
   partialize: ({ shelf: _shelf, ...preferences }) => preferences,
 }))

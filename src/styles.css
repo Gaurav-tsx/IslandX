@@ -64,14 +64,35 @@ button:disabled { cursor: default; opacity: .45; }
   inset: 2px;
   transform-origin: top center;
   isolation: isolate;
-  border-radius: 24px;
+  border-radius: calc(24px * var(--corner-scale, 1));
   overflow: hidden;
 }
 .island-content { position: relative; display: flex; flex-direction: column; }
-.island.collapsed, .island.compact, .island.statsBar, .island.circle { border-radius: 999px; }
-.island.circle { overflow: visible; }
+.island.collapsed, .island.compact, .island.statsBar { border-radius: calc(999px * var(--corner-scale, 1)); }
+.island.circle { border-radius: 50%; overflow: visible; }
 .island[data-dragging="true"], .island[data-dragging="true"] * { cursor: grabbing !important; }
 .collapsed .glass-shell, .compact .glass-shell { box-shadow: var(--glass-highlight); }
+
+/* ── slim strip (auto-hide) ─────────────────────────────────────── */
+.island.slim {
+  inset: 0;
+  border-radius: 0 0 calc(4px * var(--corner-scale, 1)) calc(4px * var(--corner-scale, 1));
+  background: var(--accent);
+  opacity: 0.75;
+  box-shadow: 0 0 10px var(--accent-glow);
+  cursor: pointer;
+  transition: opacity 160ms var(--ease-out);
+}
+.island.slim.invisible {
+  opacity: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.island.slim .island-content,
+.island.slim .glass-shell {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
 
 /* ── circle ─────────────────────────────────────────────────────── */
 .circle-button {

@@ -42,7 +42,8 @@ function Updates() {
 
 export default function Settings() {
   const prefs = usePreferences()
-  const adjustable = prefs.surface === 'glass' && prefs.glassQuality !== 'low'
+  const solid = prefs.surface === 'black' || prefs.surface === 'pure-black' || prefs.surface === 'graphite'
+  const adjustable = !solid && prefs.glassQuality !== 'low'
   const [displays, setDisplays] = useState<Monitor[]>([])
   const [autostart, setAutostart] = useState(false)
   const [uninstall, setUninstall] = useState(false)
@@ -63,9 +64,30 @@ export default function Settings() {
     <PanelHeading title="Settings"><small className="kbd">ctrl + shift + space</small></PanelHeading>
     <div className="settings-list">
       <label className="setting">Surface<select value={prefs.surface} onChange={event => usePreferences.setState({ surface: event.target.value as typeof prefs.surface })}>
-        <option value="glass">liquid glass</option><option value="black">black</option>
+        <option value="glass">liquid glass</option>
+        <option value="black">black</option>
+        <option value="pure-black">pure black (oled)</option>
+        <option value="graphite">graphite</option>
+        <option value="acrylic">acrylic</option>
+        <option value="rose">rosé</option>
+        <option value="lavender">lavender</option>
+        <option value="peach">peach</option>
+        <option value="sakura">sakura</option>
+        <option value="candy">candy glass</option>
       </select></label>
-      <label className="setting">Glass quality<select value={prefs.glassQuality} disabled={prefs.surface === 'black'} aria-describedby="glass-quality-hint"
+      <label className="setting">Corner radius<span className="settings-glass-control">
+        <input type="range" min={0} max={100} step={5} value={prefs.cornerRadius} style={fillStyle(prefs.cornerRadius)}
+          aria-valuetext={`${prefs.cornerRadius}%`} onChange={event => usePreferences.setState({ cornerRadius: event.target.valueAsNumber })} />
+        <output aria-hidden="true">{prefs.cornerRadius}%</output>
+      </span></label>
+      <small className="settings-hint">How round the corners are, from square (0%) to fully round (100%).</small>
+      <label className="setting">Slim strip (auto-hide)<input type="checkbox" checked={prefs.autoHide} onChange={event => usePreferences.setState({ autoHide: event.target.checked })} /></label>
+      <small className="settings-hint">Collapses the island into a thin line at the top edge so it never covers browser tabs. Rest the cursor on it to open.</small>
+      {prefs.autoHide && <>
+        <label className="setting">Invisible trigger strip<input type="checkbox" checked={prefs.invisibleSlim} onChange={event => usePreferences.setState({ invisibleSlim: event.target.checked })} /></label>
+        <small className="settings-hint">Makes the strip completely invisible until you move the cursor to the top center.</small>
+      </>}
+      <label className="setting">Glass quality<select value={prefs.glassQuality} disabled={solid} aria-describedby="glass-quality-hint"
         onChange={event => usePreferences.setState({ glassQuality: event.target.value as typeof prefs.glassQuality })}>
         <option value="high">high</option><option value="balanced">balanced</option><option value="low">low</option>
       </select></label>
