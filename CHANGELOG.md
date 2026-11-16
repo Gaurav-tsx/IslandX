@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.1
+
+- Update checks and downloads try alternate server addresses when a GitHub CDN connection stalls.
+
 ## v0.1.0
 
 - Windows x64 preview with a DPI-aware notch overlay, system tray, and Ctrl + Shift + Space shortcut.

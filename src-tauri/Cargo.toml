@@ -1,6 +1,6 @@
 [package]
 name = "islandx"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [build-dependencies]
@@ -15,7 +15,7 @@ tauri-plugin-autostart = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-single-instance = "2"
-tauri-plugin-updater = { version = "2", features = ["native-tls"], default-features = false }
+tauri-plugin-updater = { version = "~2.14.1", features = ["native-tls"], default-features = false }
 url = "2"
 
 [target.'cfg(windows)'.dependencies]

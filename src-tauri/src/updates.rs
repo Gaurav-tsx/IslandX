@@ -74,6 +74,8 @@ pub async fn update_check(
     let updater = app
         .updater_builder()
         .timeout(Duration::from_secs(15))
+        // Let the connector try the CDN's other addresses when one stops responding.
+        .configure_client(|client| client.connect_timeout(Duration::from_secs(6)))
         .build()
         .map_err(|error| error.to_string())?;
     *candidate = updater.check().await.map_err(|error| error.to_string())?;
