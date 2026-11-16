@@ -1,6 +1,6 @@
 [package]
 name = "islandx"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 
 [build-dependencies]
@@ -16,10 +16,13 @@ tauri-plugin-dialog = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-updater = { version = "~2.14.1", features = ["native-tls"], default-features = false }
+tokio = { version = "1", features = ["sync", "time"] }
 url = "2"
 
 [target.'cfg(windows)'.dependencies]
 base64 = "0.22"
+webview2-com = "0.39"
+windows-registry = "0.6"
 windows = { version = "0.61", features = [
   "Foundation",
   "Media_Control",

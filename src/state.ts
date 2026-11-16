@@ -7,13 +7,13 @@ export type Site = { name: string; url: string }
 export type GlassQuality = 'high' | 'balanced' | 'low'
 
 export const defaultSites: Site[] = [
-  { name: 'YT Music', url: 'https://music.youtube.com' },
   { name: 'YouTube', url: 'https://www.youtube.com' },
   { name: 'Spotify', url: 'https://open.spotify.com' },
   { name: 'Wikipedia', url: 'https://en.wikipedia.org' },
 ]
 
 type Preferences = {
+  browserId: string | null
   surface: 'glass' | 'black'
   glassQuality: GlassQuality
   glassBlur: number
@@ -31,6 +31,7 @@ type Preferences = {
 }
 
 export const usePreferences = create<Preferences>()(persist<Preferences, [], [], Omit<Preferences, 'shelf'>>(() => ({
+  browserId: null,
   surface: 'glass',
   glassQuality: 'balanced',
   glassBlur: 24,
@@ -47,9 +48,13 @@ export const usePreferences = create<Preferences>()(persist<Preferences, [], [],
   note: '',
 }), {
   name: 'islandx-preferences',
-  version: 2,
+  version: 3,
   migrate: persisted => {
     const { accent: _accent, delay: _delay, ...preferences } = persisted as Omit<Preferences, 'shelf'> & { accent?: string; delay?: number }
+    if (preferences.sites) {
+      preferences.sites = preferences.sites.filter(site => site.name !== 'YT Music' ||
+        (site.url !== 'https://music.youtube.com' && site.url !== 'https://music.youtube.com/'))
+    }
     return preferences
   },
   partialize: ({ shelf: _shelf, ...preferences }) => preferences,

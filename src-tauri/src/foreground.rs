@@ -1,5 +1,8 @@
-use std::cell::RefCell;
-use tauri::{AppHandle, Emitter};
+use std::{
+    cell::RefCell,
+    sync::atomic::{AtomicIsize, Ordering},
+};
+use tauri::{AppHandle, Emitter, WebviewWindow, WindowEvent};
 use windows::Win32::{
     Foundation::HWND,
     UI::{
@@ -7,7 +10,6 @@ use windows::Win32::{
         WindowsAndMessaging::{
             GetClassNameW, GetForegroundWindow, GetShellWindow, GetWindowThreadProcessId,
             SetForegroundWindow, EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT,
-            WINEVENT_SKIPOWNPROCESS,
         },
     },
 };
@@ -31,6 +33,20 @@ thread_local! {
     static OBSERVER: RefCell<Option<Observer>> = const { RefCell::new(None) };
 }
 
+static BROWSER: AtomicIsize = AtomicIsize::new(0);
+
+pub fn watch_browser(window: &WebviewWindow) {
+    if let Ok(hwnd) = window.hwnd() {
+        let handle = hwnd.0 as isize;
+        BROWSER.store(handle, Ordering::Relaxed);
+        window.on_window_event(move |event| {
+            if matches!(event, WindowEvent::Destroyed) {
+                let _ = BROWSER.compare_exchange(handle, 0, Ordering::Relaxed, Ordering::Relaxed);
+            }
+        });
+    }
+}
+
 fn is_app(window: HWND) -> Option<bool> {
     if window.is_invalid() {
         return None;
@@ -40,7 +56,7 @@ fn is_app(window: HWND) -> Option<bool> {
     let length = unsafe {
         GetWindowThreadProcessId(window, Some(&mut process));
         if process == std::process::id() {
-            return None;
+            return (window.0 as isize == BROWSER.load(Ordering::Relaxed)).then_some(true);
         }
         if window == GetShellWindow() {
             return Some(false);
@@ -87,7 +103,7 @@ pub fn observe(app: &AppHandle) {
             Some(foreground_changed),
             0,
             0,
-            WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
+            WINEVENT_OUTOFCONTEXT,
         )
     };
     if !hook.is_invalid() {

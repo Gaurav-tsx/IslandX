@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.0
+
+- Added in-panel YouTube Music search and playback for songs and public playlists. Music runs in a hidden WebView2 player with local filtering for known ad and tracking requests.
+- Added a browser picker to the Browser tab. Choose a registered installed browser, the Windows default browser, or IslandX Browser.
+- Adjusted the built-in browser window so closing it clears its chrome and returns control to the overlay.
+- Output volume now updates while dragging, scrolling, or using the keyboard in Music, Audio, and Controls.
+
 ## v0.2.2
 
 - Smoothed the overlay and circle outlines and removed the rectangular Windows backdrop that could show behind rounded corners. Glass uses translucent surfaces and adjustable blur inside the cards.

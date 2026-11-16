@@ -1,11 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod audio;
+mod browsers;
 mod clipboard;
 mod desktop;
 mod foreground;
 mod glass;
 mod media;
+mod music;
 mod stats;
 mod updates;
 mod window;
@@ -37,6 +39,7 @@ fn main() {
         .manage(clipboard::ClipboardState::default())
         .manage(updates::UpdateState::default())
         .manage(glass::GlassState::default())
+        .manage(music::PlayerState::default())
         .invoke_handler(tauri::generate_handler![
             glass::transparency_allowed,
             foreground::foreground_app,
@@ -45,6 +48,7 @@ fn main() {
             window::monitors,
             window::set_keyboard,
             desktop::open_site,
+            browsers::installed_browsers,
             desktop::open_file,
             desktop::read_shelf,
             desktop::save_shelf,
@@ -61,6 +65,7 @@ fn main() {
             media::start_media,
             media::stop_media,
             media::media_action,
+            music::music_request,
             audio::read_audio,
             audio::change_audio,
             clipboard::clipboard_history,
@@ -94,6 +99,7 @@ fn main() {
             let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
             let _ = app.global_shortcut().register(shortcut);
             clipboard::start(app.handle().clone());
+            tauri::async_runtime::spawn(music::preload(app.handle().clone()));
             Ok(())
         })
         .build(tauri::generate_context!())

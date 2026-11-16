@@ -14,8 +14,8 @@ export function WindowsLink({ page, children }: { page: string; children: ReactN
   </GlassButton>
 }
 
-export function launchSite(url: string, embedded: boolean) {
-  void native('open_site', { url, embedded }).catch(error => notice(errorText(error)))
+export function launchSite(url: string, embedded: boolean, browserId?: string | null) {
+  void native('open_site', { url, embedded, browserId }).catch(error => notice(errorText(error)))
 }
 
 export function readSite(event: FormEvent<HTMLFormElement>): Site {

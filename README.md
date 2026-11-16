@@ -6,11 +6,11 @@ IslandX is a small, always-on-top Windows overlay inspired by the Dynamic Island
 
 ## Features
 
-- Listen to and control the active Windows media session, including album art and playback position when the player supplies them.
+- Search YouTube Music for songs and public playlists and play them directly from Music. The background player starts with IslandX, filters known ad and tracking requests locally, and uses the player’s Skip button when available. Some in-stream ads can still play. Music can also control the active Windows media session when the built-in player is idle.
 - Keep CPU, memory, receive rate, and the clock visible in the system stats strip.
 - Start a screenshot, snip, or screen recording using Windows capture shortcuts.
 - Add local files to the shelf by dropping them or choosing them in a dialog. Shelf entries are references to the originals.
-- Open saved sites and chat apps in an isolated WebView2 window with its own persistent profile.
+- Open saved sites in IslandX Browser, a registered installed browser, or the Windows default browser. Chat shortcuts use the isolated IslandX Browser profile.
 - Opt into Windows-user-encrypted text clipboard history with search, pinning, and copy.
 - Set volume, mute the default microphone, keep notes, and use a focus timer.
 - Set the display, surface, hover delay, Windows startup, and automatic update preference.

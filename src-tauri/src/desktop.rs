@@ -90,7 +90,12 @@ fn valid_url(url: &Url) -> bool {
 }
 
 #[tauri::command]
-pub async fn open_site(app: AppHandle, url: String, embedded: bool) -> Result<(), String> {
+pub async fn open_site(
+    app: AppHandle,
+    url: String,
+    embedded: bool,
+    browser_id: Option<String>,
+) -> Result<(), String> {
     if url.len() > 2048 {
         return Err("The URL is too long.".into());
     }
@@ -100,6 +105,14 @@ pub async fn open_site(app: AppHandle, url: String, embedded: bool) -> Result<()
     }
     if !embedded {
         return shell_open(OsStr::new(url.as_str()));
+    }
+    if let Some(id) = browser_id {
+        if id == "system" {
+            return shell_open(OsStr::new(url.as_str()));
+        }
+        if crate::browsers::launch(&id, &url)? {
+            return Ok(());
+        }
     }
     if let Some(browser) = app.get_webview_window("browser") {
         browser.navigate(url).map_err(|error| error.to_string())?;
@@ -111,13 +124,13 @@ pub async fn open_site(app: AppHandle, url: String, embedded: bool) -> Result<()
         .app_local_data_dir()
         .map_err(|error| error.to_string())?
         .join("Browser");
-    WebviewWindowBuilder::new(&app, "browser", WebviewUrl::External(url))
+    let browser = WebviewWindowBuilder::new(&app, "browser", WebviewUrl::External(url))
         .title("IslandX Browser")
         .data_directory(data)
+        .visible(false)
         .inner_size(940.0, 650.0)
         .min_inner_size(420.0, 280.0)
         .center()
-        .always_on_top(true)
         .on_navigation(valid_url)
         .on_new_window(|url, _| {
             if valid_url(&url) {
@@ -127,7 +140,9 @@ pub async fn open_site(app: AppHandle, url: String, embedded: bool) -> Result<()
         })
         .build()
         .map_err(|error| error.to_string())?;
-    Ok(())
+    crate::foreground::watch_browser(&browser);
+    browser.show().map_err(|error| error.to_string())?;
+    browser.set_focus().map_err(|error| error.to_string())
 }
 
 #[tauri::command]

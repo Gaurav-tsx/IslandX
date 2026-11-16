@@ -4,13 +4,16 @@ import { AudioLines, Pause, Play, SkipBack, SkipForward, Volume2 } from 'lucide-
 import { desktop, errorText, native } from '../native'
 import { GlassButton, GlassCard } from '../glass'
 import { notice } from '../state'
+import { VolumeSlider } from '../volume'
+import { useYouTubePlayer, youtubeAction, type PlaybackAction, type Song } from '../youtube-music'
+import { MusicSearch } from './music-search'
 
-type Song = { title: string; artist: string; art: string | null; playing: boolean; position: number; duration: number }
 const timestamp = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
 
 function applyAlbumColor(image: HTMLImageElement) {
   const surface = image.closest<HTMLElement>('.music')
   surface?.style.removeProperty('--album-color')
+  if (!image.src.startsWith('data:')) return
   const canvas = document.createElement('canvas')
   canvas.width = 10
   canvas.height = 10
@@ -31,17 +34,18 @@ function applyAlbumColor(image: HTMLImageElement) {
 }
 
 export default function Music() {
-  const [song, setSong] = useState<Song | null>(null)
+  const player = useYouTubePlayer()
+  const [windowsSong, setWindowsSong] = useState<Song | null>(null)
+  const song = player.ad ? null : player.song ?? windowsSong
   const [position, setPosition] = useState(0)
   const [volume, setVolume] = useState<number>()
-  const [message, setMessage] = useState(desktop ? 'Play a track in a Windows media app.' : 'Connect a Windows media session to play from IslandX.')
+  const [message, setMessage] = useState(desktop ? '' : 'YouTube Music is available in the Windows app.')
   useEffect(() => {
     if (!desktop) return
     let active = true
     void native<{ volume: number }>('read_audio').then(audio => { if (active) setVolume(audio.volume) }).catch(() => {})
     const subscription = listen<Song | null>('island-media', ({ payload }) => {
-      setSong(payload)
-      setPosition(payload?.position ?? 0)
+      setWindowsSong(payload)
     })
     void subscription.then(() => {
       if (active) return native('start_media')
@@ -53,27 +57,26 @@ export default function Music() {
   }, [])
 
   useEffect(() => {
+    setPosition(song?.position ?? 0)
     if (!song?.playing || !song.duration) return
     const started = performance.now()
     const timer = window.setInterval(() => setPosition(Math.min(song.duration, song.position + (performance.now() - started) / 1000)), 500)
     return () => window.clearInterval(timer)
   }, [song])
 
-  function act(action: string, seconds?: number) {
-    void native('media_action', { action, seconds }).catch(error => notice(errorText(error)))
+  function act(action: PlaybackAction, seconds?: number) {
+    const result = player.song ? youtubeAction(action, seconds) : native('media_action', { action, seconds })
+    void result.catch(error => notice(errorText(error)))
   }
 
-  function setOutput(value: string) {
-    void native('change_audio', { volume: Number(value) }).catch(error => notice(errorText(error)))
-  }
-
-  return <GlassCard className="music" blur="standard" key={song?.art ? 'art' : 'empty'}>
+  return <GlassCard className="music" blur="standard">
     <div className="music-main">
       <div className="album">{song?.art ? <img src={song.art} alt="" onLoad={event => applyAlbumColor(event.currentTarget)} /> : <AudioLines size={46} strokeWidth={1.4} />}</div>
       <div className="track">
         <span className="track-label">NOW PLAYING</span>
-        <h1 title={song?.title}>{song?.title || 'Media playback'}</h1>
-        <p title={song?.artist}>{song ? song.artist || 'Windows media session' : message}</p>
+        <h1 title={song?.title}>{song?.title || 'YouTube Music'}</h1>
+        <p title={song?.artist}>{song ? song.artist || (player.song ? 'YouTube Music' : 'Windows media session')
+          : player.ad ? 'Waiting for the track…' : message || (player.ready ? 'Search for a song or playlist.' : 'Loading YouTube Music…')}</p>
       </div>
       <div className="media-controls">
         <GlassButton variant="icon" disabled={!song} aria-label="Previous track" onClick={() => act('previous')}><SkipBack size={17} fill="currentColor" /></GlassButton>
@@ -89,13 +92,9 @@ export default function Music() {
       act('seek', seconds)
     }} />
     <div className="music-footer">
-      <span>{timestamp(position)}</span>
-      <label className="row"><Volume2 size={14} /><input type="range" min={0} max={100} aria-label="Output volume" disabled={volume === undefined} value={volume ?? 0}
-        onChange={event => setVolume(Number(event.target.value))}
-        onPointerUp={event => setOutput(event.currentTarget.value)}
-        onKeyUp={event => setOutput(event.currentTarget.value)}
-      /></label>
-      <span>−{timestamp(Math.max(0, (song?.duration ?? 0) - position))}</span>
+      <label className="row"><Volume2 size={14} /><VolumeSlider value={volume} onVolume={setVolume} /></label>
+      <span>{timestamp(position)} / {timestamp(song?.duration ?? 0)}</span>
     </div>
+    <MusicSearch />
   </GlassCard>
 }
