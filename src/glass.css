@@ -37,7 +37,7 @@
   background: linear-gradient(var(--glass-fill), var(--glass-fill)), rgb(16 14 18 / .70);
 }
 
-.desktop[data-preview="true"][data-translucent="true"] .glass-shell {
+.desktop[data-preview="true"][data-card-blur="true"] .glass-shell {
   backdrop-filter: blur(var(--glass-blur)) saturate(160%);
 }
 
@@ -94,8 +94,8 @@
 }
 
 /* Only the active panel, two Settings cards in High, or the stats card can use this filter. */
-.desktop[data-translucent="true"] .glass-card[data-blur="standard"],
-.desktop[data-translucent="true"][data-quality="high"] .glass-card[data-blur="high"] {
+.desktop[data-card-blur="true"] .glass-card[data-blur="standard"],
+.desktop[data-card-blur="true"][data-quality="high"] .glass-card[data-blur="high"] {
   backdrop-filter: blur(var(--glass-blur)) saturate(160%);
 }
 

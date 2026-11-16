@@ -55,14 +55,22 @@ export const usePreferences = create<Preferences>()(persist<Preferences, [], [],
   partialize: ({ shelf: _shelf, ...preferences }) => preferences,
 }))
 
-type Island = { tab: Tab; view: View; status: string; appActive: boolean }
-export const useIsland = create<Island>(() => ({ tab: 'music', view: 'collapsed', status: '', appActive: false }))
+type Island = { tab: Tab; view: View; status: string; appActive: boolean; circleUnlocked: boolean }
+export const useIsland = create<Island>(() => ({
+  tab: 'music', view: 'collapsed', status: '', appActive: false, circleUnlocked: false,
+}))
 export const selectTab = (tab: Tab) => useIsland.setState({ tab, view: 'expanded' })
 export const setView = (view: View) => useIsland.setState(state => ({
-  view: state.appActive && (view === 'collapsed' || view === 'compact') ? 'circle' : view,
+  view: state.appActive && !state.circleUnlocked && (view === 'collapsed' || view === 'compact') ? 'circle' : view,
 }))
 export const setForeground = (appActive: boolean) => useIsland.setState(state => ({
   appActive,
-  view: appActive ? 'circle' : state.appActive ? 'collapsed' : state.view,
+  view: appActive && !state.circleUnlocked ? 'circle' : state.view === 'circle' ? 'collapsed' : state.view,
+}))
+export const unlockCircle = (tab?: Tab) => useIsland.setState(state => ({
+  circleUnlocked: true, view: 'expanded', tab: tab ?? state.tab,
+}))
+export const lockCircle = (rest: 'collapsed' | 'compact') => useIsland.setState(state => ({
+  circleUnlocked: false, view: state.appActive ? 'circle' : rest,
 }))
 export const notice = (status: string) => useIsland.setState({ status })

@@ -76,7 +76,7 @@ export default function Settings() {
           onChange={event => usePreferences.setState({ glassBlur: event.target.valueAsNumber })} />
         <output aria-hidden="true">{prefs.glassBlur ? `${prefs.glassBlur} px` : 'Off'}</output>
       </span></label>
-      <small className="settings-hint" id="glass-blur-hint">Adjusts card blur. At zero, Windows backdrop blur also turns off.</small>
+      <small className="settings-hint" id="glass-blur-hint">Adjusts blur inside the island’s glass cards.</small>
       <label className="setting">Gloss intensity<span className="settings-glass-control">
         <input type="range" min={0} max={100} step={5} value={prefs.glassGloss} disabled={!adjustable}
           aria-valuetext={`${prefs.glassGloss}%`} onChange={event => usePreferences.setState({ glassGloss: event.target.valueAsNumber })} />

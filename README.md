@@ -1,6 +1,6 @@
 # IslandX
 
-IslandX is a small, always-on-top Windows overlay inspired by the Dynamic Island. On the desktop, hover over the pill to open it. While another app is focused, IslandX becomes a small circle. Right-click it to open the panel, or hold the left button and drag it along the top edge. The tray menu and **Ctrl + Shift + Space** also open IslandX.
+IslandX is a small, always-on-top Windows overlay inspired by the Dynamic Island. On the desktop, hover over the pill to open it. While another app is focused, IslandX becomes a small circle. Right-click the circle to open the panel and unlock hover mode. Move the pointer away to return to the pill, or right-click the pill or panel to lock circle mode again. Hold the left button on the circle to drag it along the top edge. The tray menu and **Ctrl + Shift + Space** also open IslandX.
 
 [Download the latest Windows x64 installer](https://github.com/Gaurav-tsx/IslandX/releases/latest)
 
@@ -15,7 +15,7 @@ IslandX is a small, always-on-top Windows overlay inspired by the Dynamic Island
 - Set volume, mute the default microphone, keep notes, and use a focus timer.
 - Set the display, surface, hover delay, Windows startup, and automatic update preference.
 
-**Settings** includes High, Balanced, and Low glass quality, a card blur slider, and a gloss slider. Expanded panels and the stats bar use Windows backdrop blur when transparency effects are available. The Low preset and Black surface use an opaque background. IslandX respects the Windows transparency setting and disables backdrop blur while collapsed.
+**Settings** includes High, Balanced, and Low glass quality, a card blur slider, and a gloss slider. Expanded panels and the stats bar use translucent glass and blur inside the cards. The Low preset and Black surface use an opaque background. IslandX respects the Windows transparency setting and disables card blur while collapsed.
 
 The overlay works over normal windows and borderless/windowed fullscreen apps. Exclusive fullscreen is outside the scope of a regular topmost window. Snipping Tool recording requires a supported Windows 11 release. GPU and temperature telemetry, phone transfer, and native notification history are unavailable in this preview. The Notifications panel links to Windows settings.
 

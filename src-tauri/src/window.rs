@@ -2,7 +2,8 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Monitor, WebviewWindow};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::Graphics::Dwm::{
-    DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+    DwmSetWindowAttribute, DWMSBT_NONE, DWMWA_BORDER_COLOR, DWMWA_SYSTEMBACKDROP_TYPE,
+    DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
 };
 use windows::Win32::Graphics::Gdi::{
     CreateEllipticRgn, CreateRoundRectRgn, DeleteObject, SetWindowRgn,
@@ -13,7 +14,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
 };
 
-const CIRCLE: u32 = 32;
+const CIRCLE: u32 = 36;
 
 #[derive(Serialize)]
 pub struct Display {
@@ -85,9 +86,10 @@ fn left_on_display(screen_width: i32, width: i32, anchor: f64, margin: i32) -> i
 }
 
 fn remove_frame(hwnd: HWND) {
-    // The region provides the edge. Suppress the rectangular DWM frame around it.
+    // WebView owns the visible contour. Disable the independent DWM paint layers.
     let no_border = 0xffff_fffe_u32;
     let square = DWMWCP_DONOTROUND;
+    let no_backdrop = DWMSBT_NONE;
     unsafe {
         let _ = DwmSetWindowAttribute(
             hwnd,
@@ -99,6 +101,12 @@ fn remove_frame(hwnd: HWND) {
             hwnd,
             DWMWA_WINDOW_CORNER_PREFERENCE,
             std::ptr::from_ref(&square).cast(),
+            4,
+        );
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_SYSTEMBACKDROP_TYPE,
+            std::ptr::from_ref(&no_backdrop).cast(),
             4,
         );
     }

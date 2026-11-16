@@ -6,7 +6,7 @@ import { notice, usePreferences } from './state'
 
 type Drag = { pointer: number; origin: number; position: number; delta: number; started: boolean }
 
-export function IslandCircle({ onOpen, activity }: { onOpen: () => void; activity: boolean }) {
+export function IslandCircle({ onUnlock, activity }: { onUnlock: () => void; activity: boolean }) {
   const drag = useRef<Drag | null>(null)
   const frame = useRef<number | undefined>(undefined)
   const [dragging, setDragging] = useState(false)
@@ -71,7 +71,7 @@ export function IslandCircle({ onOpen, activity }: { onOpen: () => void; activit
     data-dragging={dragging}
     data-activity={activity}
     aria-label={activity ? 'IslandX circle, update available' : 'IslandX circle'}
-    title="Right-click to open · Drag to move"
+    title="Right-click to unlock hover · Drag to move"
     onPointerDown={begin}
     onPointerMove={update}
     onPointerUp={end}
@@ -79,12 +79,13 @@ export function IslandCircle({ onOpen, activity }: { onOpen: () => void; activit
     onLostPointerCapture={end}
     onContextMenu={event => {
       event.preventDefault()
-      if (!drag.current) onOpen()
+      event.stopPropagation()
+      if (!drag.current) onUnlock()
     }}
     onKeyDown={event => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault()
-        onOpen()
+        onUnlock()
       }
     }}
   >

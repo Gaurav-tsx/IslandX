@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.2
+
+- Smoothed the overlay and circle outlines and removed the rectangular Windows backdrop that could show behind rounded corners. Glass uses translucent surfaces and adjustable blur inside the cards.
+- Right-click the circle to open IslandX and enable hover. Leaving the panel returns it to a pill. Right-click the pill or panel to lock circle mode again.
+
 ## v0.2.1
 
 - Rounded the native outline and removed the square backdrop rim.

@@ -1,6 +1,6 @@
 [package]
 name = "islandx"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 
 [build-dependencies]
@@ -20,7 +20,6 @@ url = "2"
 
 [target.'cfg(windows)'.dependencies]
 base64 = "0.22"
-window-vibrancy = "0.8.1"
 windows = { version = "0.61", features = [
   "Foundation",
   "Media_Control",

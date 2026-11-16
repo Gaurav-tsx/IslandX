@@ -6,7 +6,7 @@ export const sizes = {
   compact: [296, 40],
   expanded: [592, 326],
   statsBar: [570, 42],
-  circle: [32, 32],
+  circle: [36, 36],
 } as const
 
 type Frame = { view: View; from: View | null; closeTo: View | null }

@@ -31,35 +31,31 @@ export function GlassTile({ className = '', type = 'button', ...props }: ButtonP
   return <button {...props} type={type} className={`glass-button glass-tile tile ${className}`} />
 }
 
-type Backdrop = { blurred: boolean; transparencyAllowed: boolean }
+const reducedTransparency = '(prefers-reduced-transparency: reduce), (forced-colors: active)'
 
-export function useGlassBackdrop(enabled: boolean) {
-  const [backdrop, setBackdrop] = useState<Backdrop>({ blurred: false, transparencyAllowed: !desktop })
-  const [reduce, setReduce] = useState(() => window.matchMedia('(prefers-reduced-transparency: reduce), (forced-colors: active)').matches)
+export function useTransparency() {
+  const [allowed, setAllowed] = useState(!desktop)
+  const [reduce, setReduce] = useState(() => matchMedia(reducedTransparency).matches)
 
   useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-transparency: reduce), (forced-colors: active)')
+    const query = matchMedia(reducedTransparency)
     const update = () => setReduce(query.matches)
     query.addEventListener('change', update)
-    if (!desktop) return () => query.removeEventListener('change', update)
-    const events = listen<Backdrop>('island-glass', ({ payload }) => setBackdrop(payload))
+    let mounted = true
+    let changed = false
+    const events = desktop ? listen<boolean>('island-transparency', ({ payload }) => {
+      changed = true
+      if (mounted) setAllowed(payload)
+    }) : undefined
+    void events?.then(() => native<boolean>('transparency_allowed')).then(value => {
+      if (mounted && !changed) setAllowed(value)
+    }).catch(() => {})
     return () => {
+      mounted = false
       query.removeEventListener('change', update)
-      void events.then(unlisten => unlisten()).catch(() => {})
+      void events?.then(unlisten => unlisten()).catch(() => {})
     }
   }, [])
 
-  useEffect(() => {
-    if (!desktop) return
-    let mounted = true
-    void native<Backdrop>('set_glass', { enabled: enabled && !reduce }).then(result => {
-      if (mounted) setBackdrop(result)
-    }).catch(() => {
-      if (mounted) setBackdrop({ blurred: false, transparencyAllowed: false })
-    })
-    return () => { mounted = false }
-  }, [enabled, reduce])
-
-  const available = !reduce && backdrop.transparencyAllowed
-  return { available, translucent: enabled && available && (!desktop || backdrop.blurred) }
+  return !reduce && allowed
 }

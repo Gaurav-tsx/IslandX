@@ -38,7 +38,7 @@ fn main() {
         .manage(updates::UpdateState::default())
         .manage(glass::GlassState::default())
         .invoke_handler(tauri::generate_handler![
-            glass::set_glass,
+            glass::transparency_allowed,
             foreground::foreground_app,
             window::island_layout,
             window::move_circle,

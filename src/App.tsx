@@ -8,10 +8,10 @@ import {
   MessageCircle, Music2, Settings2, SlidersHorizontal, Grip, X,
 } from 'lucide-react'
 import { desktop, errorText, native } from './native'
-import { notice, selectTab, setForeground, setView, useIsland, usePreferences } from './state'
+import { lockCircle, notice, selectTab, setForeground, setView, unlockCircle, useIsland, usePreferences } from './state'
 import { mergeShelf, saveShelf } from './ui'
 import { startUpdates, useUpdate } from './updates'
-import { GlassButton, GlassCard, useGlassBackdrop } from './glass'
+import { GlassButton, GlassCard, useTransparency } from './glass'
 import { IslandCircle } from './IslandCircle'
 import { sizes, useIslandMotion } from './island-motion'
 
@@ -41,7 +41,7 @@ const spring = { type: 'spring', stiffness: 500, damping: 36, mass: 0.75 } as co
 const retract = { type: 'tween', duration: 0.16, ease: [0.25, 0.84, 0.44, 1] } as const
 
 export function App() {
-  const { view, tab, status } = useIsland()
+  const { view, tab, status, appActive, circleUnlocked } = useIsland()
   const { surface, glassQuality, glassBlur, glassGloss, hover, monitor, captureClipboard } = usePreferences()
   const updatePhase = useUpdate(update => update.phase)
   const activity = updatePhase === 'ready' || updatePhase === 'available'
@@ -54,8 +54,10 @@ export function App() {
   const closing = frame.closeTo !== null
   const open = visible === 'expanded'
   const optical = (open || visible === 'statsBar') && surface === 'glass' && glassQuality !== 'low'
-  const { available, translucent } = useGlassBackdrop(optical && !closing && !frame.from && glassBlur > 0)
-  const sweep = optical && available && !closing && glassGloss > 0 && !reduceMotion
+  const transparency = useTransparency()
+  const translucent = optical && transparency
+  const sweep = translucent && !closing && glassGloss > 0 && !reduceMotion
+  const rest = activity ? 'compact' : 'collapsed'
   const [width, height] = sizes[visible]
   const [fromWidth, fromHeight] = sizes[frame.from ?? visible]
   const [toWidth, toHeight] = sizes[frame.closeTo ?? visible]
@@ -106,7 +108,7 @@ export function App() {
   useLayoutEffect(() => {
     if (!desktop) return
     const resize = () => {
-      const anchor = visible === 'circle' || useIsland.getState().appActive
+      const anchor = visible === 'circle' || appActive
         ? usePreferences.getState().circlePosition : null
       void native('island_layout', { width, height, monitor, anchor }).catch(error => notice(errorText(error)))
     }
@@ -115,7 +117,7 @@ export function App() {
     const dpi = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`)
     dpi.addEventListener('change', resize, { once: true })
     return () => dpi.removeEventListener('change', resize)
-  }, [width, height, monitor, visible])
+  }, [width, height, monitor, visible, appActive])
 
   useEffect(() => {
     if (desktop) void native('clipboard_capture', { enabled: captureClipboard }).catch(error => notice(errorText(error)))
@@ -137,7 +139,7 @@ export function App() {
   }, [status])
 
   function collapse() {
-    setView(activity ? 'compact' : 'collapsed')
+    setView(rest)
   }
 
   function openFromRest() {
@@ -161,7 +163,8 @@ export function App() {
 
   return <MotionConfig reducedMotion="user"><LazyMotion features={domAnimation}>
     <main className="desktop" data-surface={surface} data-preview={!desktop}
-      data-quality={glassQuality} data-optics={optical && available} data-translucent={translucent} data-transparency={available}
+      data-quality={glassQuality} data-optics={translucent && !closing} data-translucent={translucent}
+      data-transparency={transparency} data-card-blur={translucent && !closing && glassBlur > 0}
       style={{ '--glass-blur': `${glassBlur}px`, '--glass-gloss': glassGloss / 100 } as CSSProperties} onKeyDown={event => {
       if (event.key === 'Escape') collapse()
     }}>
@@ -169,12 +172,18 @@ export function App() {
         style={!desktop ? { width, height } : undefined}
         onPointerMove={sweep ? moveLight : undefined}
         onPointerEnter={() => {
-          const current = useIsland.getState().view
-          if (hover && !useIsland.getState().appActive && (current === 'collapsed' || current === 'compact')) openFromRest()
+          const current = useIsland.getState()
+          const canHover = current.circleUnlocked || (hover && !current.appActive)
+          if (canHover && (current.view === 'collapsed' || current.view === 'compact')) openFromRest()
         }}
         onPointerLeave={() => {
-          const { view: current, appActive } = useIsland.getState()
-          if (current === 'expanded' && (hover || appActive)) collapse()
+          const current = useIsland.getState()
+          if (current.view === 'expanded' && (hover || current.appActive || current.circleUnlocked)) collapse()
+        }}
+        onContextMenu={event => {
+          if (!circleUnlocked || (event.target as Element).closest('input, textarea, select, [contenteditable]')) return
+          event.preventDefault()
+          lockCircle(rest)
         }}
         onPointerDownCapture={event => {
           if (desktop && (event.target as HTMLElement).closest('input,textarea,select,form')) {
@@ -192,7 +201,7 @@ export function App() {
         aria-label="IslandX"
       >
         {visible !== 'circle' && <span aria-hidden="true" className="glass-shell">
-          {optical && available && <><span className="glass-grain" /><span className="glass-gloss" /></>}
+          {translucent && <><span className="glass-grain" /><span className="glass-gloss" /></>}
           {sweep && <span ref={light} className="glass-sweep" />}
         </span>}
         <m.div className="island-content" inert={closing}
@@ -201,7 +210,7 @@ export function App() {
           transition={{ duration: closing ? 0.09 : 0.16, ease: 'easeOut' }}>
         {open ? <>
           <header className="toolbar">
-            <span className="brand-mark" title="IslandX"><i /><i /></span>
+            <span className="brand-mark" title={circleUnlocked ? 'Right-click to lock hover' : 'IslandX'}><i /><i /></span>
             <nav aria-label="Panels">
               {tabs.map(([id, label, Icon]) =>
                 <GlassButton variant="tab" key={id} aria-current={id === tab ? 'page' : undefined} aria-label={label} title={label} onClick={() => selectTab(id)}>
@@ -224,8 +233,9 @@ export function App() {
           {status && <GlassCard className="toast" role="status">{status}<GlassButton variant="icon" aria-label="Dismiss message" onClick={() => notice('')}><X size={14} /></GlassButton></GlassCard>}
         </> : visible === 'statsBar' ? (
           <Suspense fallback={<span className="stats-loading">Reading system stats…</span>}><Stats onClose={collapse} /></Suspense>
-        ) : visible === 'circle' ? <IslandCircle onOpen={openFromRest} activity={activity} />
-        : <GlassButton variant="pill" aria-label={activity ? 'Open update settings' : 'Expand IslandX'} onClick={openFromRest}>
+        ) : visible === 'circle' ? <IslandCircle onUnlock={() => unlockCircle(activity ? 'settings' : undefined)} activity={activity} />
+        : <GlassButton variant="pill" aria-label={activity ? 'Open update settings' : 'Expand IslandX'}
+            title={circleUnlocked ? 'Right-click to lock hover' : undefined} onClick={openFromRest}>
           <span className="brand-mark"><i /><i /></span>
           {activity ? (updatePhase === 'ready' ? 'Update ready' : 'Update available') : 'IslandX'}
           <span className="pill-dot" />
