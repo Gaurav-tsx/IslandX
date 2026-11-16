@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.devtools/
+src-tauri/target/
+src-tauri/gen/
+.islandx-release.json
+*.key
+*.pem
+.env
+.env.*
+*.log

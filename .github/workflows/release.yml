@@ -1,0 +1,86 @@
+name: Publish signed Windows release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing vMAJOR.MINOR.PATCH tag'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: islandx-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: windows-2025
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check release status
+        id: state
+        shell: pwsh
+        run: |
+          if ($env:RELEASE_TAG -cnotmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') { throw 'Expected a semantic version tag.' }
+          $draft = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json isDraft --jq '.isDraft' 2>$null
+          if ($LASTEXITCODE -eq 0 -and $draft -eq 'false') {
+            'published=true' >> $env:GITHUB_OUTPUT
+          } else {
+            'published=false' >> $env:GITHUB_OUTPUT
+          }
+          exit 0
+      - uses: actions/checkout@v5
+        if: steps.state.outputs.published == 'false'
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        if: steps.state.outputs.published == 'false'
+        with:
+          node-version: 24
+          cache: npm
+      - if: steps.state.outputs.published == 'false'
+        run: rustup default stable
+      - uses: Swatinem/rust-cache@v2
+        if: steps.state.outputs.published == 'false'
+        with:
+          workspaces: src-tauri
+      - if: steps.state.outputs.published == 'false'
+        run: npm ci
+      - if: steps.state.outputs.published == 'false'
+        run: npm run version:check -- $env:RELEASE_TAG
+      - if: steps.state.outputs.published == 'false'
+        run: npm run release:config
+        env:
+          ISLANDX_UPDATE_ENDPOINT: ${{ vars.ISLANDX_UPDATE_ENDPOINT }}
+      - name: Build signed NSIS installer
+        if: steps.state.outputs.published == 'false'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) { throw 'Add the approved updater signing key to the repository Actions secrets.' }
+          npm run tauri -- build --target x86_64-pc-windows-msvc --config .islandx-release.json
+      - name: Validate and collect assets
+        if: steps.state.outputs.published == 'false'
+        run: node scripts/release-assets.mjs src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis release-assets
+      - name: Upload draft and publish
+        if: steps.state.outputs.published == 'false'
+        run: |
+          $tag = $env:RELEASE_TAG
+          $draft = gh release view $tag --json isDraft --jq '.isDraft' 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --verify-tag --draft --title "IslandX $tag" --notes-file release-assets/release-notes.md
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } elseif ($draft -ne 'true') {
+            throw 'The release became public during this build.'
+          }
+          $assets = Get-ChildItem release-assets -File | Where-Object Name -ne 'release-notes.md' | Select-Object -ExpandProperty FullName
+          gh release upload $tag @assets --clobber
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          gh release edit $tag --draft=false --latest
