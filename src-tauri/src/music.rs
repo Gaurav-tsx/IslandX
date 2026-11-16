@@ -163,13 +163,23 @@ pub async fn preload(app: AppHandle) {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Request {
     Status,
-    Search { query: String },
-    Results { query: String },
-    Play { path: String },
+    Search {
+        query: String,
+    },
+    Results {
+        query: String,
+    },
+    Play {
+        path: String,
+        #[serde(default)]
+        queue: Vec<String>,
+    },
     Toggle,
     Previous,
     Next,
-    Seek { seconds: f64 },
+    Seek {
+        seconds: f64,
+    },
 }
 
 fn playable(path: &str) -> bool {
@@ -224,7 +234,14 @@ pub async fn music_request(
         {
             return Err("Enter a search of up to 120 characters.".into());
         }
-        Request::Play { path } if path.len() > 350 || !playable(path) => {
+        Request::Play { path, queue }
+            if path.len() > 350
+                || !playable(path)
+                || queue.len() > 24
+                || queue.iter().any(|entry| {
+                    entry.len() > 350 || !entry.starts_with("/watch?") || !playable(entry)
+                }) =>
+        {
             return Err("This is not a YouTube Music track or playlist.".into());
         }
         Request::Seek { seconds } if !seconds.is_finite() || *seconds < 0.0 => {

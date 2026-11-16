@@ -6,7 +6,6 @@ mod clipboard;
 mod desktop;
 mod foreground;
 mod glass;
-mod media;
 mod music;
 mod stats;
 mod updates;
@@ -35,7 +34,6 @@ fn main() {
                 .build(),
         )
         .manage(stats::SamplerState::default())
-        .manage(media::MediaState::default())
         .manage(clipboard::ClipboardState::default())
         .manage(updates::UpdateState::default())
         .manage(glass::GlassState::default())
@@ -62,9 +60,6 @@ fn main() {
             updates::update_install,
             stats::sample_stats,
             stats::pause_stats,
-            media::start_media,
-            media::stop_media,
-            media::media_action,
             music::music_request,
             audio::read_audio,
             audio::change_audio,

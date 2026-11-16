@@ -1,6 +1,6 @@
 [package]
 name = "islandx"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 
 [build-dependencies]
@@ -20,13 +20,10 @@ tokio = { version = "1", features = ["sync", "time"] }
 url = "2"
 
 [target.'cfg(windows)'.dependencies]
-base64 = "0.22"
 webview2-com = "0.39"
 windows-registry = "0.6"
 windows = { version = "0.61", features = [
   "Foundation",
-  "Media_Control",
-  "Storage_Streams",
   "Win32_Foundation",
   "Win32_Graphics_Dwm",
   "Win32_Graphics_Gdi",

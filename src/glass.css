@@ -37,6 +37,12 @@
   background: linear-gradient(var(--glass-fill), var(--glass-fill)), rgb(16 14 18 / .70);
 }
 
+.desktop[data-translucent="true"] .expanded .glass-shell {
+  /* Keep background window captions out of the toolbar. */
+  background: linear-gradient(#19171b 47px, transparent 65px),
+    linear-gradient(var(--glass-fill), var(--glass-fill)), rgb(16 14 18 / .70);
+}
+
 .desktop[data-preview="true"][data-card-blur="true"] .glass-shell {
   backdrop-filter: blur(var(--glass-blur)) saturate(160%);
 }

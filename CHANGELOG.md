@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.2
+
+- Added local listening history for songs and playlists. Music stays on the current or last IslandX track when Windows apps play other media.
+- Kept music moving at the end of a track by using the player queue and falling back to the next available result.
+- Muted detected in-stream ads in the Music player while waiting for the track or for a Skip control.
+- Made the expanded overlay toolbar opaque so window captions and desktop elements no longer show through it.
+
 ## v0.3.1
 
 - YouTube Music results now appear beside the search box, with song and playlist choices visible as soon as search finishes.
