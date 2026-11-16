@@ -1,14 +1,39 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AudioLines, Pause, Play, SkipBack, SkipForward, Volume2 } from 'lucide-react'
-import { desktop, errorText, native } from '../native'
+import { desktop, errorText } from '../native'
 import { GlassButton, GlassCard } from '../glass'
 import { notice } from '../state'
 import { fillStyle } from '../ui'
-import { VolumeSlider } from '../volume'
-import { playMusic, useMusicHistory, useYouTubePlayer, youtubeAction, type PlaybackAction } from '../youtube-music'
+import { playMusic, setMusicVolume, useMusicHistory, useMusicVolume, useYouTubePlayer, youtubeAction, type PlaybackAction } from '../youtube-music'
 import { MusicSearch } from './music-search'
 
 const timestamp = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
+
+function MusicVolumeSlider({ value, onChange }: { value: number; onChange: (volume: number) => void }) {
+  const input = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const slider = input.current
+    if (!slider) return
+    const wheel = (event: WheelEvent) => {
+      if (slider.disabled || event.deltaY === 0) return
+      event.preventDefault()
+      const next = Math.max(0, Math.min(100, slider.valueAsNumber - Math.sign(event.deltaY) * 2))
+      if (next !== slider.valueAsNumber) {
+        slider.valueAsNumber = next
+        onChange(next)
+      }
+    }
+    slider.addEventListener('wheel', wheel, { passive: false })
+    return () => slider.removeEventListener('wheel', wheel)
+  }, [onChange])
+
+  return <input ref={input} type="range" min={0} max={100} aria-label="Music volume"
+    aria-valuetext={`${value}%`}
+    style={fillStyle(value)}
+    value={value}
+    onChange={event => onChange(event.currentTarget.valueAsNumber)} />
+}
 
 function applyAlbumColor(image: HTMLImageElement) {
   const surface = image.closest<HTMLElement>('.music')
@@ -38,13 +63,7 @@ export default function Music() {
   const recent = useMusicHistory(state => state.songs[0])
   const song = player.song ?? recent
   const [position, setPosition] = useState(0)
-  const [volume, setVolume] = useState<number>()
-  useEffect(() => {
-    if (!desktop) return
-    let active = true
-    void native<{ volume: number }>('read_audio').then(audio => { if (active) setVolume(audio.volume) }).catch(() => {})
-    return () => { active = false }
-  }, [])
+  const musicVolume = useMusicVolume(state => state.volume)
 
   useEffect(() => {
     const song = player.song
@@ -90,7 +109,7 @@ export default function Music() {
       act('seek', seconds)
     }} />
     <div className="music-footer">
-      <label className="row"><Volume2 size={14} /><VolumeSlider value={volume} onVolume={setVolume} /></label>
+      <label className="row"><Volume2 size={14} /><MusicVolumeSlider value={musicVolume} onChange={setMusicVolume} /></label>
       <span>{timestamp(position)} / {timestamp(song?.duration ?? 0)}</span>
     </div>
     <MusicSearch />

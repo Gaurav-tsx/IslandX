@@ -83,7 +83,8 @@ button:disabled { cursor: default; opacity: .45; }
   cursor: pointer;
   transition: opacity 160ms var(--ease-out);
 }
-.island.slim.invisible {
+.island.slim.invisible,
+.island.slim.locked {
   opacity: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
@@ -92,6 +93,10 @@ button:disabled { cursor: default; opacity: .45; }
 .island.slim .glass-shell {
   opacity: 0 !important;
   pointer-events: none !important;
+}
+.window-controls .locked-active {
+  color: var(--accent);
+  background: rgb(255 180 121 / .14);
 }
 
 /* ── circle ─────────────────────────────────────────────────────── */

@@ -183,7 +183,8 @@
       position: Number.isFinite(video.currentTime) ? video.currentTime : 0,
       duration: Number.isFinite(video.duration) ? video.duration : 0,
     } : null
-    return { ready: Boolean(document.querySelector('ytmusic-search-box input')), song, ad }
+    const playerVol = typeof player?.getVolume === 'function' ? player.getVolume() : (video ? Math.round(video.volume * 100) : 100)
+    return { ready: Boolean(document.querySelector('ytmusic-search-box input')), song, ad, volume: playerVol }
   }
 
   function playingList(id) {
@@ -247,6 +248,12 @@
         clearTimeout(advanceTimer)
         if (Number.isFinite(video.duration)) player.seekTo?.(Math.min(request.seconds, video.duration), true)
         return true
+      case 'volume': {
+        const vol = Math.max(0, Math.min(100, Math.round(Number(request.volume) || 0)))
+        if (typeof player?.setVolume === 'function') player.setVolume(vol)
+        if (video) video.volume = vol / 100
+        return true
+      }
       default:
         return false
     }

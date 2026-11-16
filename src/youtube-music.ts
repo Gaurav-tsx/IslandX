@@ -6,7 +6,7 @@ import { desktop, errorText, native } from './native'
 type Track = { path: string; title: string; artist: string; art: string | null; duration: number }
 type Song = Track & { list: string | null; playing: boolean; position: number }
 export type MusicItem = { path: string; title: string; detail: string; kind: 'song' | 'playlist' }
-type Player = { ready: boolean; song: Song | null; ad: boolean }
+type Player = { ready: boolean; song: Song | null; ad: boolean; volume?: number }
 const inactive: Player = { ready: false, song: null, ad: false }
 export type PlaybackAction = 'toggle' | 'next' | 'previous' | 'seek'
 
@@ -18,10 +18,24 @@ export const useMusicHistory = create(persist<{ songs: Track[]; playlists: Music
   { name: 'islandx-music-history' },
 ))
 
+export const useMusicVolume = create(persist<{ volume: number }>(
+  () => ({ volume: 80 }),
+  { name: 'islandx-music-volume' }
+))
+
+export async function setMusicVolume(volume: number) {
+  const bounded = Math.max(0, Math.min(100, Math.round(volume)))
+  useMusicVolume.setState({ volume: bounded })
+  if (desktop) {
+    await request<boolean>('volume', { volume: bounded }).catch(() => {})
+  }
+}
+
 const usePlayback = create<Player>(() => inactive)
 let showingMusic = false
 let sessionStarted = false
 let tracking = false
+let initialVolumeSynced = false
 let lastTrack: string | undefined
 let pendingPlaylist: MusicItem | undefined
 
@@ -54,6 +68,10 @@ function trackPlayback() {
     try {
       const result = await request<Player | null>('status')
       usePlayback.setState(result ?? inactive)
+      if (result?.ready && !initialVolumeSynced) {
+        initialVolumeSynced = true
+        void request('volume', { volume: useMusicVolume.getState().volume }).catch(() => {})
+      }
       if (result?.song) remember(result.song)
     } catch {
       usePlayback.setState(inactive)

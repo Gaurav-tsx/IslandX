@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.6
+
+- Added a toolbar Lock button and "Lock to center & auto-vanish" mode: centers the island and makes it completely vanish from the desktop when idle.
+- Moving the cursor to the very top center edge directly opens the full island panel; moving away re-vanishes it immediately (bypassing the small pill).
+- Right-click dragging and circle mode toggling are locked out while in locked mode.
+- Separated YouTube Music volume completely from Windows master PC volume: adjusting or scrolling over the music player's volume slider controls only the music player stream, preserving PC master volume independently.
+
 ## v0.3.5
 
 - Added Slim strip (auto-hide) mode: collapses the resting island into a 4px sensor line at the top screen edge so it never covers browser tabs, window headers, or maximized applications.

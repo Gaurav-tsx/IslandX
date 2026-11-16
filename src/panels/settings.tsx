@@ -81,7 +81,13 @@ export default function Settings() {
         <output aria-hidden="true">{prefs.cornerRadius}%</output>
       </span></label>
       <small className="settings-hint">How round the corners are, from square (0%) to fully round (100%).</small>
-      <label className="setting">Slim strip (auto-hide)<input type="checkbox" checked={prefs.autoHide} onChange={event => usePreferences.setState({ autoHide: event.target.checked })} /></label>
+      <label className="setting">Lock to center & auto-vanish<input type="checkbox" checked={prefs.locked} onChange={event => {
+        const next = event.target.checked
+        usePreferences.setState({ locked: next, circlePosition: 0.5 })
+        if (next) setView('collapsed')
+      }} /></label>
+      <small className="settings-hint">Locks the island to the top center and hides it completely. Move cursor to the top edge to open directly, and it vanishes when you leave.</small>
+      <label className="setting">Slim strip (auto-hide)<input type="checkbox" checked={prefs.autoHide} disabled={prefs.locked} onChange={event => usePreferences.setState({ autoHide: event.target.checked })} /></label>
       <small className="settings-hint">Collapses the island into a thin line at the top edge so it never covers browser tabs. Rest the cursor on it to open.</small>
       {prefs.autoHide && <>
         <label className="setting">Invisible trigger strip<input type="checkbox" checked={prefs.invisibleSlim} onChange={event => usePreferences.setState({ invisibleSlim: event.target.checked })} /></label>

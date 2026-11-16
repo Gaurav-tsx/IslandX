@@ -5,7 +5,7 @@ import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m, useReducedMotion } from 'framer-motion'
 import {
   Activity, Bell, ChevronDown, Clipboard, FolderOpen, Globe2, Grid2X2, Headphones,
-  MessageCircle, Music2, Settings2, SlidersHorizontal, Grip, X,
+  Lock, MessageCircle, Music2, Settings2, SlidersHorizontal, Grip, Unlock, X,
 } from 'lucide-react'
 import { desktop, errorText, native } from './native'
 import { lockCircle, notice, selectTab, setForeground, setView, unlockCircle, useIsland, usePreferences } from './state'
@@ -60,7 +60,7 @@ export function App() {
   const { view, tab, status, appActive, circleUnlocked } = useIsland()
   const {
     surface, glassQuality, glassBlur, glassGloss, cornerRadius,
-    hover, autoHide, invisibleSlim, monitor, captureClipboard,
+    hover, autoHide, invisibleSlim, locked, monitor, captureClipboard,
   } = usePreferences()
   const updatePhase = useUpdate(update => update.phase)
   const activity = updatePhase === 'ready' || updatePhase === 'available'
@@ -94,7 +94,7 @@ export function App() {
   const sweep = translucent && !closing && glassGloss > 0 && !reduceMotion
   const rest = activity ? 'compact' : 'collapsed'
   const isResting = visible === 'collapsed' || visible === 'compact'
-  const isSlim = autoHide && isResting && !closing && !isHovered && !islandDragging && !circleUnlocked
+  const isSlim = (locked || autoHide) && isResting && !closing && !isHovered && !islandDragging && !circleUnlocked
   const [width, height] = sizes[visible]
   const [fromWidth, fromHeight] = sizes[frame.from ?? visible]
   const [toWidth, toHeight] = sizes[frame.closeTo ?? visible]
@@ -157,10 +157,10 @@ export function App() {
   useLayoutEffect(() => {
     if (!desktop) return
     const resize = () => {
-      const anchor = usePreferences.getState().circlePosition
+      const anchor = locked ? 0.5 : usePreferences.getState().circlePosition
       const corner_radius = usePreferences.getState().cornerRadius / 100
       void native('island_layout', {
-        width,
+        width: (locked && isSlim) ? 280 : width,
         height: isSlim ? 4 : height,
         monitor,
         anchor,
@@ -172,7 +172,7 @@ export function App() {
     const dpi = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`)
     dpi.addEventListener('change', resize, { once: true })
     return () => dpi.removeEventListener('change', resize)
-  }, [width, height, monitor, visible, appActive, isSlim, cornerRadius])
+  }, [width, height, monitor, visible, appActive, isSlim, cornerRadius, locked])
 
   useEffect(() => () => {
     if (rightDragFrame.current !== undefined) cancelAnimationFrame(rightDragFrame.current)
@@ -246,6 +246,7 @@ export function App() {
           if (isSlim) openFromRest()
         }}
         onPointerDown={event => {
+          if (locked) return
           if (event.button === 2 && open && !isEditable(event.target)) {
             try {
               event.currentTarget.setPointerCapture(event.pointerId)
@@ -312,6 +313,12 @@ export function App() {
         onPointerEnter={() => {
           window.clearTimeout(intent.current)
           setIsHovered(true)
+          if (locked) {
+            intent.current = window.setTimeout(() => {
+              openFromRest()
+            }, OPEN_DELAY)
+            return
+          }
           const current = useIsland.getState()
           const canHover = current.circleUnlocked || (hover && !current.appActive)
           if (canHover && (current.view === 'collapsed' || current.view === 'compact')) {
@@ -324,6 +331,15 @@ export function App() {
         onPointerLeave={() => {
           if (rightDrag.current) return
           window.clearTimeout(intent.current)
+          if (locked) {
+            intent.current = window.setTimeout(() => {
+              if (useIsland.getState().view === 'expanded') {
+                collapse()
+                setIsHovered(false)
+              }
+            }, CLOSE_DELAY)
+            return
+          }
           const current = useIsland.getState()
           if (current.view === 'expanded' && (hover || current.appActive || current.circleUnlocked)) {
             intent.current = window.setTimeout(() => {
@@ -341,6 +357,7 @@ export function App() {
         onContextMenu={event => {
           if (isEditable(event.target)) return
           event.preventDefault()
+          if (locked) return
           if (hasDraggedRef.current) {
             hasDraggedRef.current = false
             return
@@ -356,7 +373,7 @@ export function App() {
       >
       <m.section
         key={visible}
-        className={`island ${visible} ${isSlim ? (invisibleSlim ? 'slim invisible' : 'slim') : ''}`}
+        className={`island ${visible} ${isSlim ? (locked ? 'slim locked' : invisibleSlim ? 'slim invisible' : 'slim') : ''}`}
         data-dragging={islandDragging}
         initial={frame.from ? { opacity: 0.85, scaleX: Math.max(0.1, fromWidth / width), scaleY: Math.max(0.13, fromHeight / height) } : false}
         animate={{ opacity: closing ? 0.78 : 1, scaleX: toWidth / width, scaleY: toHeight / height }}
@@ -389,6 +406,20 @@ export function App() {
               )}
             </nav>
             <div className="window-controls">
+              <GlassButton
+                variant="icon"
+                className={locked ? 'locked-active' : ''}
+                title={locked ? 'Island locked to center & auto-vanish (click to unlock)' : 'Lock island to center & auto-vanish'}
+                aria-label={locked ? 'Unlock island' : 'Lock island'}
+                aria-pressed={locked}
+                onClick={() => {
+                  const next = !locked
+                  usePreferences.setState({ locked: next, circlePosition: 0.5 })
+                  if (next) collapse()
+                }}
+              >
+                {locked ? <Lock size={15} /> : <Unlock size={15} />}
+              </GlassButton>
               <GlassButton variant="icon" title="System stats" aria-label="System stats" onClick={() => setView('statsBar')}><Activity size={16} /></GlassButton>
               <GlassButton variant="icon" title="Collapse" aria-label="Collapse" onClick={collapse}><ChevronDown size={17} /></GlassButton>
             </div>

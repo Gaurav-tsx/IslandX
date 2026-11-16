@@ -23,6 +23,7 @@ type Preferences = {
   hover: boolean
   autoHide: boolean
   invisibleSlim: boolean
+  locked: boolean
   circlePosition: number
   monitor: number
   autoUpdate: boolean
@@ -44,6 +45,7 @@ export const usePreferences = create<Preferences>()(persist<Preferences, [], [],
   hover: true,
   autoHide: false,
   invisibleSlim: false,
+  locked: false,
   circlePosition: 0.9,
   monitor: -1,
   autoUpdate: true,
@@ -62,6 +64,7 @@ export const usePreferences = create<Preferences>()(persist<Preferences, [], [],
       cornerRadius: 100,
       autoHide: false,
       invisibleSlim: false,
+      locked: false,
       ...preferences,
     } as Omit<Preferences, 'shelf'>
   },

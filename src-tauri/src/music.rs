@@ -180,6 +180,9 @@ pub enum Request {
     Seek {
         seconds: f64,
     },
+    Volume {
+        volume: u32,
+    },
 }
 
 fn playable(path: &str) -> bool {
@@ -246,6 +249,9 @@ pub async fn music_request(
         }
         Request::Seek { seconds } if !seconds.is_finite() || *seconds < 0.0 => {
             return Err("Invalid playback position.".into());
+        }
+        Request::Volume { volume } if *volume > 100 => {
+            return Err("Invalid volume level.".into());
         }
         _ => {}
     }
