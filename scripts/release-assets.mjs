@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, createPublicKey, verify } from 'node:crypto'
 import { mkdirSync, copyFileSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
@@ -11,17 +11,40 @@ const output = resolve(outputArg || '.devtools/release-assets')
 const entries = readdirSync(bundle)
 const installer = entries.find(file => file.includes(`_${version}_`) && file.endsWith('_x64-setup.exe'))
 if (!installer) throw new Error(`Could not find the x64 NSIS installer for ${tag} in ${bundle}.`)
+const bytes = readFileSync(join(bundle, installer))
 const signature = readFileSync(join(bundle, `${installer}.sig`), 'utf8').trim()
-if (!/^[A-Za-z0-9+/]+={0,2}$/.test(signature)) throw new Error('The update signature is invalid.')
-if (Buffer.from(signature, 'base64').toString().match(/\bversion:(\S+)/)?.[1] !== version) {
+const updaterKey = readFileSync(new URL('../src-tauri/updater.pub', import.meta.url), 'utf8').trim()
+const [, encodedKey] = Buffer.from(updaterKey, 'base64').toString().split(/\r?\n/)
+const [, encodedSignature, trustedComment, encodedCommentSignature] = Buffer.from(signature, 'base64').toString().split(/\r?\n/)
+if (!encodedKey || !encodedSignature || !trustedComment?.startsWith('trusted comment: ') || !encodedCommentSignature) {
+  throw new Error('The updater key or signature is malformed.')
+}
+const comment = trustedComment.slice('trusted comment: '.length)
+if (!comment.split('\t').includes(`version:${version}`)) {
   throw new Error('The update signature does not authenticate this version.')
+}
+const key = Buffer.from(encodedKey, 'base64')
+const sig = Buffer.from(encodedSignature, 'base64')
+const commentSig = Buffer.from(encodedCommentSignature, 'base64')
+if (key.length !== 42 || sig.length !== 74 || commentSig.length !== 64 || sig.subarray(0, 2).toString() !== 'ED'
+    || !key.subarray(2, 10).equals(sig.subarray(2, 10))) {
+  throw new Error('The signature is incompatible with the updater public key.')
+}
+const publicKey = createPublicKey({
+  key: Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), key.subarray(10)]),
+  format: 'der',
+  type: 'spki',
+})
+const digest = createHash('blake2b512').update(bytes).digest()
+const fileSig = sig.subarray(10)
+if (!verify(null, digest, publicKey, fileSig) || !verify(null, Buffer.concat([fileSig, Buffer.from(comment)]), publicKey, commentSig)) {
+  throw new Error('The installer or its signed release metadata failed verification.')
 }
 
 const notes = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8').split(/\r?\n(?=## )/)
   .find(section => section.startsWith(`## ${tag}\n`) || section.startsWith(`## ${tag}\r\n`))
   ?.split(/\r?\n/).slice(1).join('\n').trim()
 if (!notes) throw new Error(`Add release notes under ## ${tag} in CHANGELOG.md.`)
-const bytes = readFileSync(join(bundle, installer))
 const checksum = createHash('sha256').update(bytes).digest('hex')
 mkdirSync(output, { recursive: true })
 copyFileSync(join(bundle, installer), join(output, installer))
