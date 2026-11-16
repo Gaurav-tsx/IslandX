@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.1
+
+- YouTube Music results now appear beside the search box, with song and playlist choices visible as soon as search finishes.
+- Includes the background YouTube Music player and local ad filtering, the Browser tab’s installed-browser picker, the built-in browser title-bar fix, and live Windows volume controls.
+
 ## v0.3.0
 
 - Added in-panel YouTube Music search and playback for songs and public playlists. Music runs in a hidden WebView2 player with local filtering for known ad and tracking requests.
