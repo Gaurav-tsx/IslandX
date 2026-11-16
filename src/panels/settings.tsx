@@ -76,7 +76,7 @@ export default function Settings() {
           onChange={event => usePreferences.setState({ glassBlur: event.target.valueAsNumber })} />
         <output aria-hidden="true">{prefs.glassBlur ? `${prefs.glassBlur} px` : 'Off'}</output>
       </span></label>
-      <small className="settings-hint" id="glass-blur-hint">Adjusts card blur. At zero, Windows Acrylic also turns off.</small>
+      <small className="settings-hint" id="glass-blur-hint">Adjusts card blur. At zero, Windows backdrop blur also turns off.</small>
       <label className="setting">Gloss intensity<span className="settings-glass-control">
         <input type="range" min={0} max={100} step={5} value={prefs.glassGloss} disabled={!adjustable}
           aria-valuetext={`${prefs.glassGloss}%`} onChange={event => usePreferences.setState({ glassGloss: event.target.valueAsNumber })} />
@@ -87,9 +87,6 @@ export default function Settings() {
         <option value={-1}>Primary display</option>{displays.map(display => <option value={display.index} key={display.index}>{display.name}</option>)}
       </select></label>
       <label className="setting">Expand on hover<input type="checkbox" checked={prefs.hover} onChange={event => usePreferences.setState({ hover: event.target.checked })} /></label>
-      {prefs.hover && <label className="setting">Auto-collapse delay<select value={prefs.delay} onChange={event => usePreferences.setState({ delay: Number(event.target.value) })}>
-        <option value={400}>0.4 seconds</option><option value={900}>0.9 seconds</option><option value={2000}>2 seconds</option>
-      </select></label>}
       <label className="setting">Start with Windows<input type="checkbox" checked={autostart} disabled={!desktop} onChange={toggleStartup} /></label>
       <label className="setting">Keep encrypted text clipboard history<input type="checkbox" checked={prefs.captureClipboard} onChange={event => usePreferences.setState({ captureClipboard: event.target.checked })} /></label>
     </div>

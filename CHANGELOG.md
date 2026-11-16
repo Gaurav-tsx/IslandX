@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.1
+
+- Rounded the native outline and removed the square backdrop rim.
+- Added immediate hover transitions with animated opening and closing.
+- Added a compact circle while another app is focused. Right-click to open IslandX or drag horizontally along the top edge.
+
 ## v0.2.0
 
 - Restyled the overlay, Music, system stats, and every panel with liquid glass and an orange accent.

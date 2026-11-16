@@ -31,10 +31,10 @@ export function GlassTile({ className = '', type = 'button', ...props }: ButtonP
   return <button {...props} type={type} className={`glass-button glass-tile tile ${className}`} />
 }
 
-type Backdrop = { acrylic: boolean; transparencyAllowed: boolean }
+type Backdrop = { blurred: boolean; transparencyAllowed: boolean }
 
 export function useGlassBackdrop(enabled: boolean) {
-  const [backdrop, setBackdrop] = useState<Backdrop>({ acrylic: false, transparencyAllowed: !desktop })
+  const [backdrop, setBackdrop] = useState<Backdrop>({ blurred: false, transparencyAllowed: !desktop })
   const [reduce, setReduce] = useState(() => window.matchMedia('(prefers-reduced-transparency: reduce), (forced-colors: active)').matches)
 
   useEffect(() => {
@@ -55,11 +55,11 @@ export function useGlassBackdrop(enabled: boolean) {
     void native<Backdrop>('set_glass', { enabled: enabled && !reduce }).then(result => {
       if (mounted) setBackdrop(result)
     }).catch(() => {
-      if (mounted) setBackdrop({ acrylic: false, transparencyAllowed: false })
+      if (mounted) setBackdrop({ blurred: false, transparencyAllowed: false })
     })
     return () => { mounted = false }
   }, [enabled, reduce])
 
   const available = !reduce && backdrop.transparencyAllowed
-  return { available, translucent: enabled && available && (!desktop || backdrop.acrylic) }
+  return { available, translucent: enabled && available && (!desktop || backdrop.blurred) }
 }

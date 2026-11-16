@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef } from 'react'
 import type { CSSProperties, PointerEvent } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
@@ -8,10 +8,12 @@ import {
   MessageCircle, Music2, Settings2, SlidersHorizontal, Grip, X,
 } from 'lucide-react'
 import { desktop, errorText, native } from './native'
-import { notice, selectTab, setView, useIsland, usePreferences, type Tab } from './state'
+import { notice, selectTab, setForeground, setView, useIsland, usePreferences } from './state'
 import { mergeShelf, saveShelf } from './ui'
 import { startUpdates, useUpdate } from './updates'
 import { GlassButton, GlassCard, useGlassBackdrop } from './glass'
+import { IslandCircle } from './IslandCircle'
+import { sizes, useIslandMotion } from './island-motion'
 
 const panels = {
   music: lazy(() => import('./panels/music')),
@@ -35,36 +37,34 @@ const tabs = [
   ['audio', 'Audio', Headphones], ['settings', 'Settings', Settings2],
 ] as const
 
-const sizes = {
-  collapsed: [184, 34],
-  compact: [296, 40],
-  expanded: [592, 326],
-  statsBar: [570, 42],
-} as const
-
-const spring = { type: 'spring', stiffness: 300, damping: 30 } as const
+const spring = { type: 'spring', stiffness: 500, damping: 36, mass: 0.75 } as const
+const retract = { type: 'tween', duration: 0.16, ease: [0.25, 0.84, 0.44, 1] } as const
 
 export function App() {
   const { view, tab, status } = useIsland()
-  const { surface, glassQuality, glassBlur, glassGloss, hover, delay, monitor, captureClipboard } = usePreferences()
+  const { surface, glassQuality, glassBlur, glassGloss, hover, monitor, captureClipboard } = usePreferences()
   const updatePhase = useUpdate(update => update.phase)
   const activity = updatePhase === 'ready' || updatePhase === 'available'
   const Panel = panels[tab]
-  const leave = useRef<number | undefined>(undefined)
   const light = useRef<HTMLSpanElement>(null)
   const lightFrame = useRef<number | undefined>(undefined)
   const reduceMotion = useReducedMotion()
-  const open = view === 'expanded'
-  const optical = (open || view === 'statsBar') && surface === 'glass' && glassQuality !== 'low'
-  const { available, translucent } = useGlassBackdrop(optical && glassBlur > 0)
-  const sweep = optical && available && glassGloss > 0 && !reduceMotion
-  const [width, height] = sizes[view]
+  const { frame, complete } = useIslandMotion(view, Boolean(reduceMotion))
+  const visible = frame.view
+  const closing = frame.closeTo !== null
+  const open = visible === 'expanded'
+  const optical = (open || visible === 'statsBar') && surface === 'glass' && glassQuality !== 'low'
+  const { available, translucent } = useGlassBackdrop(optical && !closing && !frame.from && glassBlur > 0)
+  const sweep = optical && available && !closing && glassGloss > 0 && !reduceMotion
+  const [width, height] = sizes[visible]
+  const [fromWidth, fromHeight] = sizes[frame.from ?? visible]
+  const [toWidth, toHeight] = sizes[frame.closeTo ?? visible]
 
   useEffect(startUpdates, [])
   useEffect(() => () => {
     if (lightFrame.current !== undefined) cancelAnimationFrame(lightFrame.current)
     lightFrame.current = undefined
-  }, [view, sweep])
+  }, [visible, sweep])
 
   useEffect(() => {
     if (!desktop) {
@@ -72,10 +72,19 @@ export function App() {
       return
     }
     let mounted = true
+    let foregroundChanged = false
+    const foreground = listen<boolean>('island-foreground', ({ payload }) => {
+      foregroundChanged = true
+      setForeground(payload)
+    })
+    void foreground.then(() => native<boolean>('foreground_app')).then(active => {
+      if (mounted && !foregroundChanged) setForeground(active)
+    }).catch(() => {})
     void native<string[]>('read_shelf').then(shelf => {
       if (mounted && usePreferences.getState().shelf.length === 0) usePreferences.setState({ shelf })
     }).catch(error => notice(errorText(error)))
     const subscriptions = [
+      foreground,
       listen('island-toggle', () => {
         const current = useIsland.getState().view
         setView(current === 'expanded' || current === 'statsBar' ? 'collapsed' : 'expanded')
@@ -90,27 +99,31 @@ export function App() {
     ]
     return () => {
       mounted = false
-      for (const subscription of subscriptions) void subscription.then(unlisten => unlisten())
+      for (const subscription of subscriptions) void subscription.then(unlisten => unlisten()).catch(() => {})
     }
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!desktop) return
-    const resize = () => void native('island_layout', { width, height, monitor }).catch(error => notice(errorText(error)))
+    const resize = () => {
+      const anchor = visible === 'circle' || useIsland.getState().appActive
+        ? usePreferences.getState().circlePosition : null
+      void native('island_layout', { width, height, monitor, anchor }).catch(error => notice(errorText(error)))
+    }
     resize()
     // WebView2 reports a device-pixel-ratio change when a monitor's scale changes.
     const dpi = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`)
     dpi.addEventListener('change', resize, { once: true })
     return () => dpi.removeEventListener('change', resize)
-  }, [width, height, monitor])
+  }, [width, height, monitor, visible])
 
   useEffect(() => {
     if (desktop) void native('clipboard_capture', { enabled: captureClipboard }).catch(error => notice(errorText(error)))
   }, [captureClipboard])
 
   useEffect(() => {
-    if (!open && desktop) void native('set_keyboard', { enabled: false })
-  }, [open])
+    if (view !== 'expanded' && desktop) void native('set_keyboard', { enabled: false })
+  }, [view])
 
   useEffect(() => {
     if (view === 'collapsed' && activity) setView('compact')
@@ -124,8 +137,12 @@ export function App() {
   }, [status])
 
   function collapse() {
-    window.clearTimeout(leave.current)
     setView(activity ? 'compact' : 'collapsed')
+  }
+
+  function openFromRest() {
+    if (activity) selectTab('settings')
+    else setView('expanded')
   }
 
   function moveLight(event: PointerEvent<HTMLElement>) {
@@ -136,7 +153,7 @@ export function App() {
     lightFrame.current = requestAnimationFrame(() => {
       if (light.current) {
         const bounds = panel.getBoundingClientRect()
-        light.current.style.transform = `translate3d(${clientX - bounds.left - 8}px, ${clientY - bounds.top}px, 0)`
+        light.current.style.transform = `translate3d(${clientX - bounds.left}px, ${clientY - bounds.top}px, 0)`
       }
       lightFrame.current = undefined
     })
@@ -148,34 +165,40 @@ export function App() {
       style={{ '--glass-blur': `${glassBlur}px`, '--glass-gloss': glassGloss / 100 } as CSSProperties} onKeyDown={event => {
       if (event.key === 'Escape') collapse()
     }}>
-      <m.section
-        key={view}
-        className={`island ${view}`}
-        initial={{ opacity: 0, scaleX: 0.94, scaleY: 0.92 }}
-        animate={{ opacity: 1, scaleX: 1, scaleY: 1 }}
-        transition={spring}
-        aria-label="IslandX"
+      <div className={`island-frame ${visible}`}
+        style={!desktop ? { width, height } : undefined}
         onPointerMove={sweep ? moveLight : undefined}
         onPointerEnter={() => {
-          window.clearTimeout(leave.current)
-          if (hover && useIsland.getState().view === 'collapsed') setView('expanded')
+          const current = useIsland.getState().view
+          if (hover && !useIsland.getState().appActive && (current === 'collapsed' || current === 'compact')) openFromRest()
         }}
         onPointerLeave={() => {
-          if (!hover || useIsland.getState().view !== 'expanded') return
-          if (document.activeElement?.matches('input, textarea, select, [role="dialog"] button')) return
-          leave.current = window.setTimeout(collapse, delay)
+          const { view: current, appActive } = useIsland.getState()
+          if (current === 'expanded' && (hover || appActive)) collapse()
         }}
         onPointerDownCapture={event => {
-          window.clearTimeout(leave.current)
           if (desktop && (event.target as HTMLElement).closest('input,textarea,select,form')) {
             void native('set_keyboard', { enabled: true })
           }
         }}
       >
-        <span aria-hidden="true" className="glass-shell">
+      <m.section
+        key={visible}
+        className={`island ${visible}`}
+        initial={frame.from ? { opacity: 0.85, scaleX: Math.max(0.1, fromWidth / width), scaleY: Math.max(0.13, fromHeight / height) } : false}
+        animate={{ opacity: closing ? 0.78 : 1, scaleX: toWidth / width, scaleY: toHeight / height }}
+        transition={closing ? retract : spring}
+        onAnimationComplete={complete}
+        aria-label="IslandX"
+      >
+        {visible !== 'circle' && <span aria-hidden="true" className="glass-shell">
           {optical && available && <><span className="glass-grain" /><span className="glass-gloss" /></>}
           {sweep && <span ref={light} className="glass-sweep" />}
-        </span>
+        </span>}
+        <m.div className="island-content" inert={closing}
+          initial={frame.from ? { opacity: 0, y: -7 } : false}
+          animate={{ opacity: closing ? 0 : 1, y: closing ? -5 : 0 }}
+          transition={{ duration: closing ? 0.09 : 0.16, ease: 'easeOut' }}>
         {open ? <>
           <header className="toolbar">
             <span className="brand-mark" title="IslandX"><i /><i /></span>
@@ -199,14 +222,17 @@ export function App() {
             </m.div>
           </AnimatePresence>
           {status && <GlassCard className="toast" role="status">{status}<GlassButton variant="icon" aria-label="Dismiss message" onClick={() => notice('')}><X size={14} /></GlassButton></GlassCard>}
-        </> : view === 'statsBar' ? (
+        </> : visible === 'statsBar' ? (
           <Suspense fallback={<span className="stats-loading">Reading system stats…</span>}><Stats onClose={collapse} /></Suspense>
-        ) : <GlassButton variant="pill" aria-label={activity ? 'Open update settings' : 'Expand IslandX'} onClick={() => activity ? selectTab('settings') : setView('expanded')}>
+        ) : visible === 'circle' ? <IslandCircle onOpen={openFromRest} activity={activity} />
+        : <GlassButton variant="pill" aria-label={activity ? 'Open update settings' : 'Expand IslandX'} onClick={openFromRest}>
           <span className="brand-mark"><i /><i /></span>
           {activity ? (updatePhase === 'ready' ? 'Update ready' : 'Update available') : 'IslandX'}
           <span className="pill-dot" />
         </GlassButton>}
+        </m.div>
       </m.section>
+      </div>
     </main>
   </LazyMotion></MotionConfig>
 }

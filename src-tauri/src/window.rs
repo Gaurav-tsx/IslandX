@@ -1,11 +1,19 @@
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, PhysicalPosition, PhysicalSize, WebviewWindow};
-use windows::Win32::Foundation::{HWND, POINT};
-use windows::Win32::Graphics::Gdi::{CreatePolygonRgn, DeleteObject, SetWindowRgn, WINDING};
-use windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowLongPtrW, SetWindowDisplayAffinity, SetWindowLongPtrW, GWL_EXSTYLE,
-    WDA_EXCLUDEFROMCAPTURE, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+use tauri::{AppHandle, Emitter, Monitor, WebviewWindow};
+use windows::Win32::Foundation::{HWND, RECT};
+use windows::Win32::Graphics::Dwm::{
+    DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
 };
+use windows::Win32::Graphics::Gdi::{
+    CreateEllipticRgn, CreateRoundRectRgn, DeleteObject, SetWindowRgn,
+};
+use windows::Win32::UI::WindowsAndMessaging::{
+    GetWindowLongPtrW, GetWindowRect, SetWindowDisplayAffinity, SetWindowLongPtrW, SetWindowPos,
+    GWL_EXSTYLE, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER, WDA_EXCLUDEFROMCAPTURE,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+};
+
+const CIRCLE: u32 = 32;
 
 #[derive(Serialize)]
 pub struct Display {
@@ -34,50 +42,26 @@ pub fn monitors(window: WebviewWindow) -> Result<Vec<Display>, String> {
         .collect())
 }
 
-fn shape(hwnd: HWND, width: u32, height: u32, scale: f64, expanded: bool) {
-    let inset = 8.0 * scale;
-    let radius = (if expanded { 27.0 } else { 18.0 } * scale)
-        .min(height as f64 / 2.0)
-        .min(width as f64 / 4.0);
-    let w = width as f64;
-    let h = height as f64;
-    let point = |x: f64, y: f64| POINT {
-        x: x.round() as i32,
-        y: y.round() as i32,
-    };
-    let mut outline = vec![point(0.0, 0.0), point(w, 0.0)];
-    let arc = |center_x: f64, center_y: f64, radius: f64, start: f64, step: f64| {
-        (0..=6).map(move |i| {
-            let angle = (start + f64::from(i) * step).to_radians();
-            point(
-                center_x + angle.cos() * radius,
-                center_y + angle.sin() * radius,
-            )
-        })
-    };
-    outline.extend(arc(w, inset, inset, -90.0, -15.0));
-    outline.extend(arc(w - inset - radius, h - radius, radius, 0.0, 15.0));
-    outline.extend(arc(inset + radius, h - radius, radius, 90.0, 15.0));
-    outline.extend(arc(0.0, inset, inset, 0.0, -15.0));
+fn shape(hwnd: HWND, width: i32, height: i32, scale: f64, circle: bool) -> Result<(), String> {
     unsafe {
-        let region = CreatePolygonRgn(&outline, WINDING);
-        // Windows owns the region after a successful SetWindowRgn.
-        if !region.is_invalid() && SetWindowRgn(hwnd, Some(region), true) == 0 {
+        let region = if circle {
+            CreateEllipticRgn(0, 0, width, height)
+        } else {
+            let diameter = ((48.0 * scale).round() as i32).min(height).min(width);
+            CreateRoundRectRgn(0, 0, width, height, diameter, diameter)
+        };
+        if region.is_invalid() {
+            return Err("Could not create the island outline.".into());
+        }
+        if SetWindowRgn(hwnd, Some(region), true) == 0 {
             let _ = DeleteObject(region.into());
+            return Err("Windows could not set the island outline.".into());
         }
     }
+    Ok(())
 }
 
-#[tauri::command]
-pub fn island_layout(
-    window: WebviewWindow,
-    width: u32,
-    height: u32,
-    monitor: i32,
-) -> Result<(), String> {
-    if !(150..=640).contains(&width) || !(28..=360).contains(&height) || monitor < -1 {
-        return Err("Unsupported island size or monitor.".into());
-    }
+fn display(window: &WebviewWindow, monitor: i32) -> Result<Monitor, String> {
     let display = if monitor >= 0 {
         window
             .available_monitors()
@@ -87,16 +71,60 @@ pub fn island_layout(
     } else {
         None
     };
-    let display = display
+    display
         .or(window
             .primary_monitor()
             .map_err(|error| error.to_string())?)
-        .ok_or("No active display was found.")?;
+        .ok_or_else(|| "No active display was found.".into())
+}
+
+fn left_on_display(screen_width: i32, width: i32, anchor: f64, margin: i32) -> i32 {
+    let travel = screen_width - width;
+    let margin = margin.min(travel / 2);
+    ((anchor * f64::from(screen_width)).round() as i32 - width / 2).clamp(margin, travel - margin)
+}
+
+fn remove_frame(hwnd: HWND) {
+    // The region provides the edge. Suppress the rectangular DWM frame around it.
+    let no_border = 0xffff_fffe_u32;
+    let square = DWMWCP_DONOTROUND;
+    unsafe {
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_BORDER_COLOR,
+            (&no_border as *const u32).cast(),
+            4,
+        );
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            std::ptr::from_ref(&square).cast(),
+            4,
+        );
+    }
+}
+
+#[tauri::command]
+pub fn island_layout(
+    window: WebviewWindow,
+    width: u32,
+    height: u32,
+    monitor: i32,
+    anchor: Option<f64>,
+) -> Result<(), String> {
+    let circle = width == CIRCLE && height == CIRCLE;
+    if (!circle && (!(150..=640).contains(&width) || !(28..=360).contains(&height)))
+        || monitor < -1
+        || anchor.is_some_and(|x| !(0.0..=1.0).contains(&x))
+    {
+        return Err("Unsupported island size, position, or monitor.".into());
+    }
+    let display = display(&window, monitor)?;
     let scale = display.scale_factor();
     let screen = display.size();
     let origin = display.position();
-    let w = ((width as f64 * scale).round() as u32).min(screen.width);
-    let h = ((height as f64 * scale).round() as u32).min(screen.height);
+    let w = ((width as f64 * scale).round() as u32).min(screen.width) as i32;
+    let h = ((height as f64 * scale).round() as u32).min(screen.height) as i32;
     let hwnd = HWND(window.hwnd().map_err(|error| error.to_string())?.0);
     let first_show = !window.is_visible().unwrap_or(false);
     unsafe {
@@ -109,22 +137,72 @@ pub fn island_layout(
                 style | required | WS_EX_NOACTIVATE.0 as isize,
             );
             let _ = SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
+            remove_frame(hwnd);
         }
+        let inset = if circle {
+            (5.0 * scale).round() as i32
+        } else {
+            0
+        };
+        let left = left_on_display(
+            screen.width as i32,
+            w,
+            anchor.unwrap_or(0.5),
+            (8.0 * scale).round() as i32,
+        );
+        SetWindowPos(
+            hwnd,
+            None,
+            origin.x + left,
+            origin.y + inset,
+            w,
+            h,
+            SWP_NOACTIVATE | SWP_NOZORDER,
+        )
+        .map_err(|error| error.to_string())?;
     }
-    window
-        .set_size(PhysicalSize::new(w, h))
-        .map_err(|error| error.to_string())?;
-    window
-        .set_position(PhysicalPosition::new(
-            origin.x + (screen.width - w) as i32 / 2,
-            origin.y,
-        ))
-        .map_err(|error| error.to_string())?;
-    shape(hwnd, w, h, scale, height > 100);
+    shape(hwnd, w, h, scale, circle)?;
     if first_show {
         window.show().map_err(|error| error.to_string())?;
     }
     Ok(())
+}
+
+#[tauri::command]
+pub fn move_circle(
+    window: WebviewWindow,
+    monitor: i32,
+    start: f64,
+    delta: f64,
+) -> Result<f64, String> {
+    if monitor < -1 || !(0.0..=1.0).contains(&start) || !delta.is_finite() {
+        return Err("Invalid circle position.".into());
+    }
+    let display = display(&window, monitor)?;
+    let scale = display.scale_factor();
+    let screen = display.size().width as i32;
+    let width = ((f64::from(CIRCLE) * scale).round() as i32).min(screen);
+    let origin = display.position();
+    let hwnd = HWND(window.hwnd().map_err(|error| error.to_string())?.0);
+    let target = (start + delta * scale / f64::from(screen)).clamp(0.0, 1.0);
+    let left = left_on_display(screen, width, target, (8.0 * scale).round() as i32);
+    unsafe {
+        let mut rect = RECT::default();
+        GetWindowRect(hwnd, &mut rect).map_err(|error| error.to_string())?;
+        if rect.right - rect.left == width && rect.bottom - rect.top == width {
+            SetWindowPos(
+                hwnd,
+                None,
+                origin.x + left,
+                rect.top,
+                0,
+                0,
+                SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER,
+            )
+            .map_err(|error| error.to_string())?;
+        }
+    }
+    Ok(f64::from(left + width / 2) / f64::from(screen))
 }
 
 #[tauri::command]
@@ -138,6 +216,8 @@ pub fn set_keyboard(window: WebviewWindow, enabled: bool) -> Result<(), String> 
     }
     if enabled {
         window.set_focus().map_err(|error| error.to_string())?;
+    } else {
+        crate::foreground::restore(hwnd);
     }
     Ok(())
 }

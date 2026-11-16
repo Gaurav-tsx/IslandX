@@ -1,20 +1,64 @@
 use serde::Serialize;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
-use windows::{Foundation::TypedEventHandler, UI::ViewManagement::UISettings};
+use windows::{
+    Foundation::TypedEventHandler,
+    Win32::{
+        Foundation::HWND,
+        Graphics::Dwm::{DwmSetWindowAttribute, DWMSBT_NONE, DWMWA_SYSTEMBACKDROP_TYPE},
+    },
+    UI::ViewManagement::UISettings,
+};
 
 #[derive(Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Backdrop {
-    acrylic: bool,
+    blurred: bool,
     transparency_allowed: bool,
 }
 
 #[derive(Default)]
 struct Glass {
     requested: bool,
-    acrylic: bool,
+    effect: Option<Effect>,
     settings: Option<(UISettings, Option<i64>)>,
+}
+
+enum Effect {
+    Acrylic,
+    ShapedBlur,
+}
+
+impl Effect {
+    fn apply(window: &WebviewWindow) -> Option<Self> {
+        let hwnd = HWND(window.hwnd().ok()?.0);
+        let none = DWMSBT_NONE;
+        // The system backdrop on newer Windows paints the rectangular frame.
+        // Client blur follows the island's window region.
+        let modern = unsafe {
+            DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_SYSTEMBACKDROP_TYPE,
+                std::ptr::from_ref(&none).cast(),
+                4,
+            )
+        }
+        .is_ok();
+        if modern {
+            window_vibrancy::apply_blur(window, Some((20, 20, 24, 165))).ok()?;
+            Some(Self::ShapedBlur)
+        } else {
+            window_vibrancy::apply_acrylic(window, Some((20, 20, 24, 195))).ok()?;
+            Some(Self::Acrylic)
+        }
+    }
+
+    fn clear(self, window: &WebviewWindow) {
+        let _ = match self {
+            Self::Acrylic => window_vibrancy::clear_acrylic(window),
+            Self::ShapedBlur => window_vibrancy::clear_blur(window),
+        };
+    }
 }
 
 impl Glass {
@@ -25,16 +69,14 @@ impl Glass {
             .and_then(|(settings, _)| settings.AdvancedEffectsEnabled().ok())
             .unwrap_or(false);
         if self.requested && transparency_allowed {
-            if !self.acrylic {
-                self.acrylic =
-                    window_vibrancy::apply_acrylic(window, Some((20, 20, 24, 195))).is_ok();
+            if self.effect.is_none() {
+                self.effect = Effect::apply(window);
             }
-        } else if self.acrylic {
-            let _ = window_vibrancy::clear_acrylic(window);
-            self.acrylic = false;
+        } else if let Some(effect) = self.effect.take() {
+            effect.clear(window);
         }
         Backdrop {
-            acrylic: self.acrylic,
+            blurred: self.effect.is_some(),
             transparency_allowed,
         }
     }

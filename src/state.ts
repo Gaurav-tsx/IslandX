@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export type Tab = 'music' | 'web' | 'notifications' | 'messages' | 'shelf' | 'clipboard' | 'widgets' | 'controls' | 'actions' | 'audio' | 'settings'
-export type View = 'collapsed' | 'compact' | 'expanded' | 'statsBar'
+export type View = 'collapsed' | 'compact' | 'expanded' | 'statsBar' | 'circle'
 export type Site = { name: string; url: string }
 export type GlassQuality = 'high' | 'balanced' | 'low'
 
@@ -19,7 +19,7 @@ type Preferences = {
   glassBlur: number
   glassGloss: number
   hover: boolean
-  delay: number
+  circlePosition: number
   monitor: number
   autoUpdate: boolean
   nextLaunchUpdate: string | null
@@ -36,7 +36,7 @@ export const usePreferences = create<Preferences>()(persist<Preferences, [], [],
   glassBlur: 24,
   glassGloss: 65,
   hover: true,
-  delay: 900,
+  circlePosition: 0.9,
   monitor: -1,
   autoUpdate: true,
   nextLaunchUpdate: null,
@@ -47,16 +47,22 @@ export const usePreferences = create<Preferences>()(persist<Preferences, [], [],
   note: '',
 }), {
   name: 'islandx-preferences',
-  version: 1,
+  version: 2,
   migrate: persisted => {
-    const { accent: _accent, ...preferences } = persisted as Omit<Preferences, 'shelf'> & { accent?: string }
+    const { accent: _accent, delay: _delay, ...preferences } = persisted as Omit<Preferences, 'shelf'> & { accent?: string; delay?: number }
     return preferences
   },
   partialize: ({ shelf: _shelf, ...preferences }) => preferences,
 }))
 
-type Island = { tab: Tab; view: View; status: string }
-export const useIsland = create<Island>(() => ({ tab: 'music', view: 'collapsed', status: '' }))
+type Island = { tab: Tab; view: View; status: string; appActive: boolean }
+export const useIsland = create<Island>(() => ({ tab: 'music', view: 'collapsed', status: '', appActive: false }))
 export const selectTab = (tab: Tab) => useIsland.setState({ tab, view: 'expanded' })
-export const setView = (view: View) => useIsland.setState({ view })
+export const setView = (view: View) => useIsland.setState(state => ({
+  view: state.appActive && (view === 'collapsed' || view === 'compact') ? 'circle' : view,
+}))
+export const setForeground = (appActive: boolean) => useIsland.setState(state => ({
+  appActive,
+  view: appActive ? 'circle' : state.appActive ? 'collapsed' : state.view,
+}))
 export const notice = (status: string) => useIsland.setState({ status })

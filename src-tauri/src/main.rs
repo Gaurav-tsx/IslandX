@@ -3,6 +3,7 @@
 mod audio;
 mod clipboard;
 mod desktop;
+mod foreground;
 mod glass;
 mod media;
 mod stats;
@@ -38,7 +39,9 @@ fn main() {
         .manage(glass::GlassState::default())
         .invoke_handler(tauri::generate_handler![
             glass::set_glass,
+            foreground::foreground_app,
             window::island_layout,
+            window::move_circle,
             window::monitors,
             window::set_keyboard,
             desktop::open_site,
@@ -67,6 +70,7 @@ fn main() {
             clipboard::clipboard_clear,
         ])
         .setup(|app| {
+            foreground::observe(app.handle());
             glass::observe(app.handle());
             let show = MenuItem::with_id(app, "show", "Toggle IslandX", true, None::<&str>)?;
             let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
@@ -92,6 +96,11 @@ fn main() {
             clipboard::start(app.handle().clone());
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("IslandX could not start");
+        .build(tauri::generate_context!())
+        .expect("IslandX could not start")
+        .run(|_, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                foreground::stop();
+            }
+        });
 }

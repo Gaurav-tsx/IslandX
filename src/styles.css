@@ -10,13 +10,46 @@ button:disabled { cursor: default; opacity: .5; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .desktop { width: 100%; height: 100%; display: grid; justify-items: center; align-items: start; }
 .desktop[data-preview="true"] { background: radial-gradient(ellipse at 50% 35%, #dce6e0, #f4f5ef 55%, #abbcc3); padding-top: 70px; }
-.desktop[data-preview="true"] .island { width: min(592px, 100%); height: 326px; box-shadow: 0 22px 75px #1723224d; }
-.desktop[data-preview="true"] .statsBar { height: 42px; }
-.desktop[data-preview="true"] .collapsed, .desktop[data-preview="true"] .compact { width: 184px; height: 34px; }
-.island { position: relative; width: 100%; height: 100%; transform-origin: top center; display: flex; flex-direction: column; isolation: isolate; }
-.island::after { position: absolute; z-index: -1; content: ""; inset: 0 0 auto; height: 8px; background: radial-gradient(circle at 0 100%, transparent 7.7px, var(--surface) 8.4px) left top / 8px 8px no-repeat, radial-gradient(circle at 100% 100%, transparent 7.7px, var(--surface) 8.4px) right top / 8px 8px no-repeat; pointer-events: none; }
-.collapsed .glass-shell, .compact .glass-shell { border-radius: 0 0 18px 18px; box-shadow: var(--glass-highlight); }
-.statsBar .glass-shell { border-radius: 0 0 20px 20px; }
+.desktop[data-preview="true"] .island-frame { max-width: 100%; }
+.desktop[data-preview="true"] .glass-shell { box-shadow: var(--glass-highlight), var(--glass-shadow); }
+.island-frame, .island, .island-content { width: 100%; height: 100%; }
+.island {
+  position: relative;
+  transform-origin: top center;
+  isolation: isolate;
+  border-radius: 24px;
+  overflow: hidden;
+}
+.island-content { position: relative; display: flex; flex-direction: column; }
+.island.collapsed, .island.compact, .island.statsBar, .island.circle { border-radius: 999px; }
+.collapsed .glass-shell, .compact .glass-shell { box-shadow: var(--glass-highlight); }
+.circle-button {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgb(255 196 148 / .40);
+  background: radial-gradient(circle at 38% 25%, #42302b, #1d171b 72%);
+  box-shadow: var(--glass-highlight);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.circle-button:active, .circle-button[data-dragging="true"] { cursor: grabbing; }
+.circle-mark {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  transform: scale(1);
+}
+.circle-mark i { display: block; background: var(--accent); border-radius: 50%; width: 3px; height: 3px; }
+.circle-mark i:first-child { width: 7px; border-radius: 3px; }
+.circle-button[data-activity="true"] .circle-mark i:last-child { box-shadow: 0 0 5px 2px var(--accent-glow); }
+@media (prefers-reduced-motion: no-preference) {
+  .circle-mark { transition: transform 180ms cubic-bezier(.2, .8, .3, 1.4); }
+  .circle-button[data-dragging="true"] .circle-mark { transform: scale(0.78); }
+}
+.circle-button:focus-visible { outline-offset: -3px; }
 .pill { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin: 0 8px; height: 100%; padding: 0 16px; font-size: 11px; font-weight: 650; letter-spacing: .05em; }
 .pill-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 9px var(--accent); }
 .brand-mark { display: inline-flex; justify-content: center; gap: 2px; align-items: center; width: 25px; height: 14px; border: 1px solid rgb(255 180 121 / .43); background: rgb(255 180 121 / .09); border-radius: 20px; }
