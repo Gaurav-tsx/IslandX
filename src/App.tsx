@@ -434,7 +434,7 @@ export function App() {
           <AnimatePresence mode="wait" initial={false} custom={direction}>
             <m.div className="panel" key={tab} custom={direction} variants={panelMotion} initial={reduceMotion ? false : 'enter'} animate="center" exit={reduceMotion ? undefined : 'exit'}
               transition={{ duration: reduceMotion ? 0 : timing.panel, ease: [0.22, 1, 0.36, 1] }}>
-              <Suspense fallback={<p className="empty" role="status">opening panel…</p>}>
+              <Suspense fallback={<p className="empty" role="status">Opening panel…</p>}>
                 {tab === 'music' ? <Panel /> : <GlassCard className="panel-glass" blur="standard"><Panel /></GlassCard>}
               </Suspense>
             </m.div>
@@ -452,7 +452,7 @@ export function App() {
         : <GlassButton variant="pill" data-activity={activity} aria-label={activity ? 'Open update settings' : 'Expand IslandX'}
             title={circleUnlocked ? 'Right-click to lock hover' : undefined} onClick={openFromRest}>
           <span className="brand-mark"><i /><i /></span>
-          {activity ? (updatePhase === 'ready' ? 'update ready' : 'update available') : 'islandx'}
+          {activity ? (updatePhase === 'ready' ? 'Update Ready' : 'Update Available') : 'IslandX'}
           <span className="pill-dot" />
         </GlassButton>}
         </m.div>

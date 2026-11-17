@@ -44,7 +44,7 @@ The workflow reads `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PA
 
 The release feed defaults to the repository’s public GitHub Releases URL. Set the `ISLANDX_UPDATE_ENDPOINT` repository variable to use a different HTTPS endpoint in future builds. Releases keep their installers in GitHub so users can recover manually. If a release needs to roll back through the automatic updater, publish the last working source under a new higher version.
 
-The app checks at launch and every 12 hours when enabled. Settings also offers a manual check and displays release notes and download progress. The verified installer stays ready on disk. Choose **Update and restart** or **Install on next launch**. IslandX verifies the version-bound signature again before running the staged installer.
+The app checks at launch and every 12 hours when enabled. Settings also offers a manual check and displays release notes and download progress. The verified installer stays ready on disk. Choose **Update & Restart** or **Install on Next Launch**. IslandX verifies the version-bound signature again before running the staged installer.
 
 To build a signed release locally, set the signing environment variables in the build session then run:
 

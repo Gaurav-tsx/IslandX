@@ -1,6 +1,6 @@
 [package]
 name = "islandx"
-version = "0.3.7"
+version = "0.3.8"
 edition = "2021"
 
 [build-dependencies]
@@ -47,7 +47,6 @@ windows = { version = "0.61", features = [
 ] }
 
 [profile.release]
-codegen-units = 1
 lto = "thin"
 opt-level = "s"
 panic = "abort"

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.8
+
+- Removed the toolbar separator that could flash as IslandX collapses.
+- Refined the appearance of tabs, tiles, Settings, and Music, and restored capitalization in labels and headings.
+- Enabled parallel Rust code generation for release builds and moved release checks earlier in the publish workflow.
+
 ## v0.3.7
 
 - Organized Settings into Appearance, Behavior, Updates, and About.

@@ -44,6 +44,14 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Validate release version and configuration
+        if: steps.state.outputs.published == 'false'
+        env:
+          ISLANDX_UPDATE_ENDPOINT: ${{ vars.ISLANDX_UPDATE_ENDPOINT }}
+        run: |
+          node scripts/version.mjs $env:RELEASE_TAG
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/release-config.mjs
       - if: steps.state.outputs.published == 'false'
         run: rustup default stable
       - uses: Swatinem/rust-cache@v2
@@ -52,12 +60,6 @@ jobs:
           workspaces: src-tauri
       - if: steps.state.outputs.published == 'false'
         run: npm ci
-      - if: steps.state.outputs.published == 'false'
-        run: npm run version:check -- $env:RELEASE_TAG
-      - if: steps.state.outputs.published == 'false'
-        run: npm run release:config
-        env:
-          ISLANDX_UPDATE_ENDPOINT: ${{ vars.ISLANDX_UPDATE_ENDPOINT }}
       - name: Build signed NSIS installer
         if: steps.state.outputs.published == 'false'
         env:
@@ -65,7 +67,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           if (-not $env:TAURI_SIGNING_PRIVATE_KEY) { throw 'Add the approved updater signing key to the repository Actions secrets.' }
-          npm run tauri -- build --target x86_64-pc-windows-msvc --config .islandx-release.json
+          npm run tauri -- build --target x86_64-pc-windows-msvc --config .islandx-release.json -- --locked
       - name: Validate and collect assets
         if: steps.state.outputs.published == 'false'
         run: node scripts/release-assets.mjs src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis release-assets

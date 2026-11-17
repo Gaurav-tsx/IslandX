@@ -24,11 +24,11 @@ export default function Browser() {
     </PanelHeading>
     {choosing && <label className="setting browser-picker">Open sites with
       <select value={browserId ?? ''} onChange={event => usePreferences.setState({ browserId: event.target.value || null })}>
-        <option value="">islandx browser (default)</option>
-        <option value="system">windows default browser</option>
+        <option value="">IslandX Browser (Default)</option>
+        <option value="system">Windows Default Browser</option>
         {browsers.map(browser => <option key={browser.id} value={browser.id}>{browser.name}</option>)}
         {browserId && browserId !== 'system' && !browsers.some(browser => browser.id === browserId) &&
-          <option value={browserId} disabled>selected browser unavailable</option>}
+          <option value={browserId} disabled>Selected Browser Unavailable</option>}
       </select>
     </label>}
     <div className="tile-grid">
@@ -38,7 +38,7 @@ export default function Browser() {
         </GlassTile>
         <GlassButton variant="icon" className="remove" aria-label={`Remove ${site.name}`} onClick={() => usePreferences.setState(state => ({ sites: state.sites.filter(entry => entry.url !== site.url) }))}><X size={13} /></GlassButton>
       </div>)}
-      <GlassTile className="dashed" disabled={sites.length >= 24} onClick={() => setAdding(true)}><Plus size={16} /> Add a site</GlassTile>
+      <GlassTile className="dashed" disabled={sites.length >= 24} onClick={() => setAdding(true)}><Plus size={16} /> Add a Site</GlassTile>
     </div>
     {adding && <SiteForm onSave={site => {
       usePreferences.setState(state => ({ sites: [...state.sites.filter(entry => entry.url !== site.url), site] }))

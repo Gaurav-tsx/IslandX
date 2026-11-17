@@ -42,16 +42,6 @@ button:disabled { cursor: default; opacity: .45; }
 ::selection { background: rgb(255 180 121 / .35); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* ── lowercase voice ──────────────────────────────────────────────
-   ui chrome is lowercase; anything that is the user's own content
-   (titles, file names, site names, notes, clipboard text) keeps its case. */
-.pill, .toolbar, .panel-heading h1, .panel-heading small, .brief, .empty, .subtle, .control,
-.tile, .setting, .settings-section, .settings-hint, .glass-reduced-hint, .track-label,
-.music-footer, .music-results-tabs, .music-history h2, .stats, .widget-grid label,
-.widget-grid p, .site-form button, .stats-loading { text-transform: lowercase; }
-.tile-text, .track h1, .track p, .update-notes, .toast, input, textarea, select, option,
-.music-search-message, .danger[role="alert"] { text-transform: none; }
-
 .desktop { width: 100%; height: 100%; display: grid; justify-items: center; align-items: start; }
 .desktop[data-preview="true"] { background: radial-gradient(ellipse at 50% 35%, #dce6e0, #f4f5ef 55%, #abbcc3); padding-top: 70px; }
 .desktop[data-preview="true"] .island-frame { max-width: 100%; }
@@ -139,7 +129,7 @@ button:disabled { cursor: default; opacity: .45; }
 .brand-mark i:last-child { width: 3px; height: 3px; border-radius: 50%; background: var(--accent); }
 
 /* ── toolbar ────────────────────────────────────────────────────── */
-.toolbar { position: relative; isolation: isolate; height: 47px; flex: 0 0 47px; margin: 0 23px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); }
+.toolbar { position: relative; isolation: isolate; height: 47px; flex: 0 0 47px; margin: 0 23px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .toolbar nav, .window-controls { display: flex; align-items: center; gap: clamp(0px, 0.8vw, 6px); }
 .toolbar nav { position: relative; }
 .nav-button, .icon-button { display: inline-grid; place-items: center; width: 29px; height: 29px; color: var(--muted); border-radius: 9px; position: relative; flex: 0 0 auto; }
@@ -212,7 +202,7 @@ input:not([type=checkbox]):not([type=range]):focus-visible, select:focus-visible
   background-color: rgb(255 255 255 / .1);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
-::placeholder { color: rgb(255 255 255 / .42); text-transform: lowercase; }
+::placeholder { color: rgb(255 255 255 / .52); }
 select {
   appearance: none;
   padding-right: 30px;
@@ -427,3 +417,134 @@ input[type=range].timeline { width: 100%; margin: 14px 0 3px; }
   .album { width: 85px; height: 85px; }
   .bar { display: none; }
 }
+
+/* ── expanded island polish ─────────────────────────────────────── */
+.island.expanded .glass-shell {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .18),
+    inset 0 -1px 0 rgb(0 0 0 / .20),
+    0 20px 48px rgb(0 0 0 / .34),
+    0 5px 18px rgb(0 0 0 / .22);
+}
+.island.expanded .nav-button {
+  border-radius: 10px;
+}
+.island.expanded .nav-button:hover { background: rgb(255 255 255 / .08); }
+.island.expanded .nav-button[aria-current] { color: var(--accent); }
+.island.expanded .toolbar nav::before {
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .15),
+    0 0 18px var(--accent-glow);
+}
+
+/* Typography: follow the capitalization in the React source instead of
+   forcing all headings, labels, notifications and tooltips to lowercase. */
+.island .panel-heading h1 {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -.025em;
+  color: var(--text);
+  text-wrap: balance;
+}
+.island .brief {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .015em;
+}
+.island .panel-heading small,
+.island .settings-hint,
+.island .subtle { line-height: 1.45; }
+.island .settings-hint { color: color-mix(in srgb, var(--muted) 90%, white); }
+.island .track-label {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .055em;
+}
+.island .kbd {
+  border-radius: 8px;
+  border-color: rgb(255 255 255 / .14);
+  background: rgb(255 255 255 / .05);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Softer, neater action and browser tiles. */
+.island .tile-grid { gap: 10px; }
+.island .tile {
+  min-height: 50px;
+  border-radius: 15px;
+  padding: 10px 12px;
+  font-weight: 590;
+  line-height: 1.35;
+}
+.island .tile svg { filter: drop-shadow(0 0 5px var(--accent-glow)); }
+.island .glass-tile:not(.dashed) {
+  background: linear-gradient(135deg, rgb(255 255 255 / .095), rgb(255 255 255 / .035));
+}
+.island .glass-tile:not(.dashed):not(:disabled):hover {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, transparent), rgb(255 255 255 / .075));
+  border-color: color-mix(in srgb, var(--accent) 31%, transparent);
+}
+.island .tile.dashed {
+  border-radius: 15px;
+  border-style: dashed;
+  border-color: rgb(255 255 255 / .24);
+  color: var(--text);
+  background: rgb(255 255 255 / .025);
+}
+.island .tile.dashed:not(:disabled):hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border-color: var(--accent);
+}
+.island .tile-text { font-weight: 640; }
+.island .tile-text small { font-weight: 450; margin-top: 2px; font-size: 10px; }
+
+/* Panels and settings controls stay inside the existing native overlay size. */
+.island .panel-glass {
+  background:
+    radial-gradient(ellipse at 10% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 65%),
+    linear-gradient(150deg, rgb(255 255 255 / .062), rgb(255 255 255 / .024)),
+    rgb(16 14 18 / .48);
+}
+.island .settings-nav { gap: 7px; margin: 1px 0 13px; }
+.island .settings-nav button {
+  padding: 6px 12px;
+  min-height: 31px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 630;
+  color: var(--muted);
+  border: 1px solid rgb(255 255 255 / .11);
+  background: rgb(255 255 255 / .045);
+}
+.island .settings-nav button[aria-pressed="true"] {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  background: color-mix(in srgb, var(--accent) 15%, rgb(255 255 255 / .03));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .13), 0 0 14px var(--accent-glow);
+}
+.island .setting { font-weight: 550; line-height: 1.35; }
+.island .settings-list > .setting {
+  min-height: 37px;
+  padding: 5px 9px;
+  border: 1px solid rgb(255 255 255 / .075);
+  border-radius: 11px;
+  background: rgb(255 255 255 / .028);
+}
+.island .settings-list > .settings-hint { padding: 0 8px; }
+.island .settings-section { border-radius: 17px; }
+.island .setting select { max-width: 53%; font-size: 12px; }
+.island .setting select,
+.island .site-form input,
+.island .music-search-form input {
+  background-color: rgb(255 255 255 / .085);
+  border-color: rgb(255 255 255 / .14);
+}
+.island .music { border-radius: 20px; }
+.island .album { border-radius: 18px; }
+.island .media-controls .play { box-shadow: 0 3px 14px var(--accent-glow); }

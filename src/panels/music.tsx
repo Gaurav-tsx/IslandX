@@ -87,12 +87,12 @@ export default function Music() {
       <div className="album" data-playing={Boolean(player.song?.playing)}>{song?.art ? <img key={song.art} src={song.art} alt="" onLoad={event => applyAlbumColor(event.currentTarget)} /> : <AudioLines size={46} strokeWidth={1.4} />}</div>
       <div className="track">
         <div className="track-head">
-          <span className="track-label">{player.song ? 'now playing' : recent ? 'last played' : 'music'}</span>
+          <span className="track-label">{player.song ? 'Now Playing' : recent ? 'Last Played' : 'Music'}</span>
           {player.song?.playing && <span className="eq" aria-hidden="true"><i /><i /><i /></span>}
         </div>
         <h1 title={song?.title}>{song?.title || 'YouTube Music'}</h1>
-        <p title={song?.artist}>{player.ad ? 'waiting for the track…' : song?.artist ||
-          (player.ready ? 'search for a song or playlist.' : desktop ? 'loading youtube music…' : 'youtube music is available in the windows app.')}</p>
+        <p title={song?.artist}>{player.ad ? 'Waiting for the track…' : song?.artist ||
+          (player.ready ? 'Search for a song or playlist.' : desktop ? 'Loading YouTube Music…' : 'YouTube Music is available in the Windows app.')}</p>
       </div>
       <div className="media-controls">
         <GlassButton variant="icon" disabled={!player.song} aria-label="Previous track" onClick={() => act('previous')}><SkipBack size={17} fill="currentColor" /></GlassButton>

@@ -24,11 +24,11 @@ export default function Actions() {
       <GlassTile onClick={() => void capture('screenshot')}><Camera size={17} /> Screenshot</GlassTile>
       <GlassTile className="record" onClick={() => void capture('record')}><Circle size={13} fill="currentColor" /> Record</GlassTile>
     </div>
-    <p className="brief">Website shortcuts</p>
+    <p className="brief">Website Shortcuts</p>
     <div className="tile-grid">{actions.map((action, index) => action ? <div className="tile-wrap" key={index}>
       <GlassTile onClick={() => launchSite(action.url, false)}><Link2 size={16} /><span className="tile-text">{action.name}</span></GlassTile>
       <GlassButton variant="icon" className="remove" aria-label={`Remove ${action.name}`} onClick={() => save(index, null)}><X size={13} /></GlassButton>
-    </div> : <GlassTile key={index} className="dashed" onClick={() => setSlot(index)}><Plus size={16} /> Add shortcut</GlassTile>)}</div>
+    </div> : <GlassTile key={index} className="dashed" onClick={() => setSlot(index)}><Plus size={16} /> Add Shortcut</GlassTile>)}</div>
     {slot !== null && <SiteForm onSave={site => save(slot, site)} onClose={() => setSlot(null)} />}
   </>
 }
